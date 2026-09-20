@@ -25,3 +25,6 @@ agent/parallax-agent
 **/id_ed25519
 **/parallax-deploy
 **/looking-glass-deploy
+**/playwright-report
+**/test-results
+release-dist

@@ -7,18 +7,21 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test src/lib/*.test.js"
+    "test": "node --test src/lib/*.test.js",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@xterm/addon-fit": "0.11.0",
+    "@xterm/xterm": "6.0.0",
     "leaflet": "1.9.4",
     "lucide-react": "0.468.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "react-leaflet": "5.0.0",
-    "@xterm/xterm": "6.0.0",
-    "@xterm/addon-fit": "0.11.0"
+    "react-leaflet": "5.0.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "4.3.3",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",

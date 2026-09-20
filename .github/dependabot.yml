@@ -1,0 +1,47 @@
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directories: [/backend, /agent]
+    schedule:
+      interval: weekly
+    groups:
+      go-patch-and-minor:
+        patterns: ['*']
+        update-types: [minor, patch]
+      go-security:
+        applies-to: security-updates
+        patterns: ['*']
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    groups:
+      frontend-patch-and-minor:
+        patterns: ['*']
+        update-types: [minor, patch]
+      frontend-security:
+        applies-to: security-updates
+        patterns: ['*']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      containers-patch-and-minor:
+        patterns: ['*']
+        update-types: [minor, patch]
+  - package-ecosystem: pip
+    directory: /tests/integration
+    schedule:
+      interval: weekly
+    groups:
+      integration:
+        patterns: ['*']
+        update-types: [minor, patch]

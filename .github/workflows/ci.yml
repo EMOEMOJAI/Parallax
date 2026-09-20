@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
+  schedule:
+    - cron: '23 4 * * 1'
 
 permissions:
   contents: read
@@ -62,6 +65,17 @@ jobs:
       - run: npm audit --audit-level=low
       - run: npm test
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - name: Save browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: browser-failures
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7
       - name: Reject unsafe HTML rendering
         run: |
           if grep -r 'dangerouslySetInnerHTML' src; then
@@ -83,22 +97,45 @@ jobs:
       - run: python3 -m unittest discover -s deploy/tests
       - run: docker compose config --quiet
 
-  containers:
-    name: Container (${{ matrix.component }})
+  quality:
+    name: Workflow and privacy checks
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        component: [server, agent]
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - name: Build production image
+          fetch-depth: 0
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.27.1'
+          cache: false
+      - name: Validate workflows
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+      - run: python3 -m unittest discover -s scripts/tests
+      - run: python3 scripts/check-privacy.py
+      - name: Scan history for secrets without exposing matches
+        run: go run github.com/zricethezav/gitleaks/v8@v8.30.1 git --log-opts=HEAD --redact --no-banner .
+
+  integration:
+    name: Container integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Build production images
         run: |
-          build_args=()
-          if [ "${{ matrix.component }}" = agent ]; then
-            build_args+=(--build-arg "AGENT_VERSION=$GITHUB_SHA")
-          fi
-          docker build "${build_args[@]}" --file "Dockerfile.${{ matrix.component }}" --tag "parallax-${{ matrix.component }}:ci" .
+          docker build --file Dockerfile.server --tag parallax-server:ci .
+          docker build --build-arg "AGENT_VERSION=$GITHUB_SHA" --file Dockerfile.agent --tag parallax-agent:ci .
+      - run: python3 -m pip install -r tests/integration/requirements.txt
+      - name: Verify UI, metrics access, nonroot agents and shell protocol
+        run: python3 tests/integration/containers.py
+      - name: Save integration failure evidence
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: container-failures
+          path: test-results/integration/
+          retention-days: 7

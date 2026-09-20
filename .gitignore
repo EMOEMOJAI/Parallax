@@ -40,3 +40,9 @@ private/
 **/id_ed25519
 **/parallax-deploy
 **/looking-glass-deploy
+
+# Local verification artifacts
+frontend/playwright-report/
+frontend/test-results/
+test-results/
+release-dist/
