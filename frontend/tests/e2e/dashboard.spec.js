@@ -1,4 +1,4 @@
-import { test } from '@playwright/test'
+import { test, expect } from '@playwright/test'
 import assert from 'node:assert/strict'
 import AxeBuilder from '@axe-core/playwright'
 import { openDashboard, nodes, chooseCommand } from './fixtures.js'
@@ -178,12 +178,8 @@ test('preset removal becomes visible on keyboard focus', async ({
   })
   await p.keyboard.press('Tab')
   await button.focus()
-  await p.waitForTimeout(200)
-  const state = await button.evaluate((el) => ({
-    active: el === document.activeElement,
-    opacity: getComputedStyle(el).opacity,
-  }))
-  assert.deepEqual(state, { active: true, opacity: '1' })
+  await expect(button).toBeFocused()
+  await expect(button).toHaveCSS('opacity', '1')
 })
 
 test('saved traceroute replay restores the mapped route', async ({
