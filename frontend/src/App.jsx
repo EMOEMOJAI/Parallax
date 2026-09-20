@@ -1,7 +1,7 @@
 import { commandSucceeded } from './lib/commandResult'
 import { randomId } from './lib/id'
 import { useState, useCallback, useEffect, useRef, useMemo, lazy, Suspense } from 'react'
-import { Telescope, Activity, Grid3x3, Columns3, Map as MapIcon, Clock } from 'lucide-react'
+import { Activity, Grid3x3, Columns3, Map as MapIcon, Clock } from 'lucide-react'
 import AmbientBackground from './components/AmbientBackground'
 import NodeSelector from './components/NodeSelector'
 import NodeInfo from './components/NodeInfo'
@@ -388,10 +388,8 @@ export default function App() {
       <header className="relative z-40 border-b border-border/20">
         <div className="max-w-[1400px] mx-auto px-5 py-3 flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2.5 shrink-0">
-            <div className="h-8 w-8 rounded-lg bg-accent/15 flex items-center justify-center ring-1 ring-accent/20">
-              <Telescope size={16} className="text-accent-text" />
-            </div>
-            <span className="text-base font-bold tracking-tight text-text-primary hidden sm:block">
+            <img src="/icon-192.png" alt="Parallax" width={32} height={32} className="h-8 w-8 shrink-0" />
+            <span aria-hidden="true" className="text-base font-bold tracking-tight text-text-primary hidden sm:block">
               Parallax
             </span>
           </div>
@@ -537,7 +535,7 @@ export default function App() {
       <footer className="relative z-10 border-t border-border/15 py-4 px-5">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Telescope size={14} className="text-text-muted" />
+            <img src="/icon-192.png" alt="" width={20} height={20} className="h-5 w-5 shrink-0" />
             <span className="text-xs font-medium text-text-muted">Parallax</span>
           </div>
           <span className="text-[11px] text-text-muted">Network diagnostics</span>
