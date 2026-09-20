@@ -1,3 +1,4 @@
+import { motionStateClass, useMountTransition } from '../hooks/useMountTransition'
 import { randomId } from '../lib/id'
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { Terminal } from '@xterm/xterm'
@@ -5,10 +6,14 @@ import { FitAddon } from '@xterm/addon-fit'
 import { SquareTerminal, X, Maximize2, Minimize2 } from 'lucide-react'
 import '@xterm/xterm/css/xterm.css'
 import { useFocusTrap } from '../hooks/useFocusTrap'
+import { useReducedMotion } from '../hooks/useReducedMotion'
+import IconSwap from './IconSwap'
 
-export default function ShellTerminal({ visible, onClose, nodeId, nodeName, ws, state = 'open' }) {
+export default function ShellTerminal({ visible, onClose, nodeId, nodeName, ws, state: parentState = 'open' }) {
+  // The parent retains the exit; start entry only once this lazy chunk mounts.
+  const { state } = useMountTransition(visible && parentState !== 'closing')
   const dialogRef = useRef(null)
-  useFocusTrap(dialogRef, visible)
+  useFocusTrap(dialogRef, visible && state !== 'closing')
   const termRef = useRef(null)
   const containerRef = useRef(null)
   const fitAddonRef = useRef(null)
@@ -16,6 +21,7 @@ export default function ShellTerminal({ visible, onClose, nodeId, nodeName, ws, 
   // Track the nodeId that owns the current session to avoid orphaned sessions
   const sessionNodeIdRef = useRef(null)
   const [maximized, setMaximized] = useState(false)
+  const reducedMotion = useReducedMotion()
   // Keep a ref to ws so the effect doesn't re-run when connected/reconnectAttempt changes
   const wsRef = useRef(ws)
   wsRef.current = ws
@@ -25,7 +31,7 @@ export default function ShellTerminal({ visible, onClose, nodeId, nodeName, ws, 
     if (!visible || !containerRef.current || !nodeId) return
 
     const term = new Terminal({
-      cursorBlink: true,
+      cursorBlink: !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
       fontSize: 13,
       fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
       theme: {
@@ -97,9 +103,13 @@ export default function ShellTerminal({ visible, onClose, nodeId, nodeName, ws, 
     // Window resize handler
     const handleResize = () => fitAddon.fit()
     window.addEventListener('resize', handleResize)
+    // Fit the actual box throughout maximize/restore, including its final size.
+    const observer = new ResizeObserver(handleResize)
+    observer.observe(containerRef.current)
 
     return () => {
       window.removeEventListener('resize', handleResize)
+      observer.disconnect()
       // Kill the shell session using the captured nodeId, not the current one
       if (sessionIdRef.current && sessionNodeIdRef.current) {
         wsRef.current.send({
@@ -148,13 +158,10 @@ export default function ShellTerminal({ visible, onClose, nodeId, nodeName, ws, 
     })
   }, [visible])
 
-  // Re-fit on maximize toggle
+  // Update presentation without restarting an active PTY session.
   useEffect(() => {
-    if (fitAddonRef.current && visible) {
-      const timer = setTimeout(() => fitAddonRef.current?.fit(), 50)
-      return () => clearTimeout(timer)
-    }
-  }, [maximized, visible])
+    if (termRef.current) termRef.current.options.cursorBlink = !reducedMotion
+  }, [reducedMotion])
 
   const handleClose = useCallback(() => {
     onClose()
@@ -171,9 +178,10 @@ export default function ShellTerminal({ visible, onClose, nodeId, nodeName, ws, 
         aria-label={`Shell on ${nodeName || nodeId}`}
         tabIndex={-1}
         data-state={state}
-        className={`motion-modal flex flex-col rounded-2xl border border-border/40 bg-[#0e0e14] shadow-2xl shadow-black/60 overflow-hidden
-          transition-[width,height,margin,border-radius] duration-[var(--duration-fast)] ease-[var(--ease-smooth-out)] ${
-          maximized ? 'w-full h-full m-0 rounded-none' : 'w-[90vw] max-w-5xl h-[75vh]'
+        inert={state === 'closing'}
+        aria-hidden={state === 'closing'}
+        className={`t-modal shell-size ${motionStateClass(state)} flex flex-col rounded-2xl border border-border/40 bg-[#0e0e14] shadow-2xl shadow-black/60 overflow-hidden ${
+          maximized ? 'w-full h-full m-0 rounded-none' : 'w-[min(90vw,64rem)] h-[75vh]'
         }`}
       >
         {/* Title bar */}
@@ -190,7 +198,7 @@ export default function ShellTerminal({ visible, onClose, nodeId, nodeName, ws, 
               aria-label={maximized ? 'Restore terminal size' : 'Maximize terminal'}
               className="p-1.5 rounded-md hover:bg-hover-overlay transition-colors text-text-muted hover:text-text-primary cursor-pointer"
             >
-              {maximized ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+              <IconSwap active={maximized} from={<Maximize2 size={13} />} to={<Minimize2 size={13} />} />
             </button>
             <button
               onClick={handleClose}

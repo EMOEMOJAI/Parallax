@@ -1,3 +1,4 @@
+import { motionStateClass, useMountTransition } from '../hooks/useMountTransition'
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap } from 'react-leaflet'
 import L from 'leaflet'
@@ -60,11 +61,13 @@ function FitBounds({ points }) {
   return null
 }
 
-export default function GeoMap({ visible, onClose, nodes, traceHops, state = 'open' }) {
+export default function GeoMap({ visible, onClose, nodes, traceHops, state: parentState = 'open' }) {
+  // The parent retains the exit; start entry only once this lazy chunk mounts.
+  const { state } = useMountTransition(visible && parentState !== 'closing')
   const [hopsGeo, setHopsGeo] = useState([])
   const [loadingHops, setLoadingHops] = useState(false)
   const dialogRef = useRef(null)
-  useFocusTrap(dialogRef, visible)
+  useFocusTrap(dialogRef, visible && state !== 'closing')
 
   // Resolve traceroute hop IPs to geo coordinates
   const abortControllerRef = useRef(null)
@@ -183,7 +186,7 @@ export default function GeoMap({ visible, onClose, nodes, traceHops, state = 'op
   if (!visible) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div data-state={state} className="motion-layer fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div data-state={state} className="motion-backdrop absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
         ref={dialogRef}
@@ -192,8 +195,10 @@ export default function GeoMap({ visible, onClose, nodes, traceHops, state = 'op
         aria-label="Network Map"
         tabIndex={-1}
         data-state={state}
-        className="motion-modal relative w-full max-w-5xl h-[75vh] rounded-2xl border border-border/50
-          bg-bg-elevated shadow-2xl shadow-black/50 overflow-hidden flex flex-col"
+        inert={state === 'closing'}
+        aria-hidden={state === 'closing'}
+        className={`t-modal ${motionStateClass(state)} relative w-full max-w-5xl h-[75vh] rounded-2xl border border-border/50
+          bg-bg-elevated shadow-2xl shadow-black/50 overflow-hidden flex flex-col`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -229,8 +234,9 @@ export default function GeoMap({ visible, onClose, nodes, traceHops, state = 'op
             attributionControl={true}
           >
             <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
+              url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maxZoom={19}
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             />
 
             <FitBounds points={allPoints} />

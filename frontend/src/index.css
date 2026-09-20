@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./motion.css";
 
 @theme {
   --color-bg-primary: #121218;
@@ -103,6 +104,13 @@ body {
 .leaflet-container {
   background: #121218 !important;
 }
+.leaflet-container .leaflet-control-attribution.leaflet-control {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+}
+.leaflet-container .leaflet-control-attribution a {
+  color: var(--color-accent-text);
+}
 
 /* ── Motion tokens ──────────────────────────────────────────────────────────
    The transitions.dev scale. Durations follow open/close asymmetry: an open
@@ -142,51 +150,21 @@ body {
 
 /* Surfaces that mount and unmount. Pair with useMountTransition: render while
    `mounted`, and set data-state from `state`. */
+.motion-layer[data-state='closing'] {
+  pointer-events: none;
+}
+
 .motion-backdrop {
   opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-smooth-out);
+  transition: opacity var(--modal-open-dur) var(--modal-ease);
 }
 .motion-backdrop[data-state='open'] {
   opacity: 1;
 }
 .motion-backdrop[data-state='closing'] {
   opacity: 0;
-  transition-duration: var(--duration-quick);
-}
-
-.motion-modal {
-  opacity: 0;
-  transform: scale(var(--scale-large));
-  transition:
-    opacity var(--duration-fast) var(--ease-smooth-out),
-    transform var(--duration-fast) var(--ease-smooth-out);
-}
-.motion-modal[data-state='open'] {
-  opacity: 1;
-  transform: scale(1);
-}
-.motion-modal[data-state='closing'] {
-  opacity: 0;
-  transform: scale(var(--scale-large));
-  transition-duration: var(--duration-quick);
-}
-
-.motion-dropdown {
-  opacity: 0;
-  transform: scale(var(--scale-medium));
-  transform-origin: top;
-  transition:
-    opacity var(--duration-fast) var(--ease-smooth-out),
-    transform var(--duration-fast) var(--ease-smooth-out);
-}
-.motion-dropdown[data-state='open'] {
-  opacity: 1;
-  transform: scale(1);
-}
-.motion-dropdown[data-state='closing'] {
-  opacity: 0;
-  transform: scale(var(--scale-tiny));
-  transition-duration: var(--duration-quick);
+  transition-duration: var(--modal-close-dur);
+  pointer-events: none;
 }
 
 /* The ambient background drifts and the status dots pulse forever; honour a
@@ -195,9 +173,8 @@ body {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    animation: none !important;
+    transition: none !important;
     scroll-behavior: auto !important;
   }
 }

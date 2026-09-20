@@ -1,0 +1,148 @@
+/* Semantic settings share the existing motion scale in index.css. */
+:root {
+  --dropdown-open-dur: var(--duration-fast);
+  --dropdown-close-dur: var(--duration-quick);
+  --dropdown-pre-scale: var(--scale-medium);
+  --dropdown-closing-scale: var(--scale-tiny);
+  --dropdown-ease: var(--ease-smooth-out);
+  --modal-open-dur: var(--duration-fast);
+  --modal-close-dur: var(--duration-quick);
+  --modal-scale: var(--scale-large);
+  --modal-scale-close: var(--scale-large);
+  --modal-ease: var(--ease-smooth-out);
+  --icon-swap-dur: var(--duration-fast);
+  --icon-swap-blur: var(--blur-small);
+  --icon-swap-start-scale: 0.25;
+  --icon-swap-ease: var(--ease-in-out);
+  --toast-open: 400ms;
+  --toast-close: var(--duration-medium);
+  --toast-distance: 16px;
+  --toast-blur: var(--blur-small);
+  --toast-scale: 0.97;
+  --toast-ease: var(--ease-smooth-out);
+}
+
+/* transitions.dev: menu-dropdown */
+.t-dropdown {
+  transform-origin: top left;
+  transform: scale(var(--dropdown-pre-scale));
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--dropdown-open-dur) var(--dropdown-ease),
+    opacity   var(--dropdown-open-dur) var(--dropdown-ease);
+  will-change: transform, opacity;
+}
+.t-dropdown[data-origin="top-right"]     { transform-origin: top right; }
+.t-dropdown[data-origin="top-center"]    { transform-origin: top center; }
+.t-dropdown[data-origin="bottom-left"]   { transform-origin: bottom left; }
+.t-dropdown[data-origin="bottom-center"] { transform-origin: bottom center; }
+.t-dropdown[data-origin="bottom-right"]  { transform-origin: bottom right; }
+
+.t-dropdown.is-open {
+  transform: scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+.t-dropdown.is-closing {
+  transform: scale(var(--dropdown-closing-scale));
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--dropdown-close-dur) var(--dropdown-ease),
+    opacity   var(--dropdown-close-dur) var(--dropdown-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-dropdown { transition: none !important; }
+}
+
+/* transitions.dev: modal */
+.t-modal {
+  transform-origin: center;
+  transform: scale(var(--modal-scale));
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--modal-open-dur) var(--modal-ease),
+    opacity   var(--modal-open-dur) var(--modal-ease);
+  will-change: transform, opacity;
+}
+.t-modal.is-open {
+  transform: scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+.t-modal.is-closing {
+  transform: scale(var(--modal-scale-close));
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--modal-close-dur) var(--modal-ease),
+    opacity   var(--modal-close-dur) var(--modal-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-modal { transition: none !important; }
+}
+
+/* transitions.dev: icon-swap */
+.t-icon-swap {
+  position: relative;
+  display: inline-grid;
+}
+.t-icon-swap .t-icon {
+  grid-area: 1 / 1;
+  transition:
+    opacity   var(--icon-swap-dur) var(--icon-swap-ease),
+    filter    var(--icon-swap-dur) var(--icon-swap-ease),
+    transform var(--icon-swap-dur) var(--icon-swap-ease);
+  will-change: opacity, filter, transform;
+}
+.t-icon-swap[data-state="a"] .t-icon[data-icon="a"],
+.t-icon-swap[data-state="b"] .t-icon[data-icon="b"] {
+  opacity: 1;
+  filter: blur(0);
+  transform: scale(1);
+}
+.t-icon-swap[data-state="a"] .t-icon[data-icon="b"],
+.t-icon-swap[data-state="b"] .t-icon[data-icon="a"] {
+  opacity: 0;
+  filter: blur(var(--icon-swap-blur));
+  transform: scale(var(--icon-swap-start-scale));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-icon-swap .t-icon { transition: none !important; }
+}
+
+/* transitions.dev: toast */
+.t-toast {
+  opacity: 0;
+  transform: translateY(var(--toast-distance)) scale(var(--toast-scale));
+  filter: blur(var(--toast-blur));
+  will-change: transform, opacity, filter;
+  transition:
+    opacity var(--toast-close) var(--toast-ease),
+    transform var(--toast-close) var(--toast-ease),
+    filter var(--toast-close) var(--toast-ease);
+}
+.t-toast.is-open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+  transition:
+    opacity var(--toast-open) var(--toast-ease),
+    transform var(--toast-open) var(--toast-ease),
+    filter var(--toast-open) var(--toast-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-toast { transition: none !important; }
+}
+
+/* Terminal resize shares the surface easing without replacing its enter/exit
+   lanes. Explicit dimensions interpolate; ResizeObserver keeps the PTY fitted. */
+.t-modal.shell-size {
+  transition-property: transform, opacity, width, height, margin, border-radius;
+}

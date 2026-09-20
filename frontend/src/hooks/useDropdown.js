@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useMountTransition } from './useMountTransition'
 
 /**
@@ -8,9 +8,18 @@ import { useMountTransition } from './useMountTransition'
  * data-state so it can animate out before it unmounts.
  */
 export function useDropdown() {
-  const [open, setOpen] = useState(false)
+  const [open, updateOpen] = useState(false)
   const ref = useRef(null)
-  const { mounted, state } = useMountTransition(open)
+  const { mounted, state } = useMountTransition(open, '--dropdown-close-dur')
+  const setOpen = useCallback((next) => {
+    const value = typeof next === 'function' ? next(open) : next
+    // Restore focus before inert can blur it. Outside clicks still get their
+    // normal browser focus afterward; they must not be pulled back on cleanup.
+    if (!value && ref.current?.contains(document.activeElement)) {
+      ref.current.querySelector('[aria-expanded]')?.focus({ preventScroll: true })
+    }
+    updateOpen(value)
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -18,7 +27,9 @@ export function useDropdown() {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false)
     }
     const handleKey = (e) => {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key === 'Escape') {
+        setOpen(false)
+      }
     }
     document.addEventListener('mousedown', handleClick)
     document.addEventListener('keydown', handleKey)
@@ -26,7 +37,7 @@ export function useDropdown() {
       document.removeEventListener('mousedown', handleClick)
       document.removeEventListener('keydown', handleKey)
     }
-  }, [open])
+  }, [open, setOpen])
 
   return { ref, open, setOpen, mounted, state }
 }

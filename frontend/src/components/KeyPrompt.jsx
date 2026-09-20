@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { KeyRound } from 'lucide-react'
 import { useFocusTrap } from '../hooks/useFocusTrap'
-import { useMountTransition } from '../hooks/useMountTransition'
+import { motionStateClass, useMountTransition } from '../hooks/useMountTransition'
 
 /**
  * Asks for the client API key. Shown when /api/public-config reports
@@ -34,7 +34,7 @@ export default function KeyPrompt({ visible, onSave, invalid }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+    <div data-state={state} className="motion-layer fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div data-state={state} className="motion-backdrop absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <form
         ref={dialogRef}
@@ -43,8 +43,10 @@ export default function KeyPrompt({ visible, onSave, invalid }) {
         aria-label="API key required"
         onSubmit={submit}
         data-state={state}
-        className="motion-modal relative w-full max-w-sm rounded-xl border border-border/40 bg-bg-secondary/95
-          p-5 shadow-2xl space-y-4"
+        inert={state === 'closing'}
+        aria-hidden={state === 'closing'}
+        className={`t-modal ${motionStateClass(state)} relative w-full max-w-sm rounded-xl border border-border/40 bg-bg-secondary/95
+          p-5 shadow-2xl space-y-4`}
       >
         <div className="flex items-center gap-2.5">
           <div className="h-8 w-8 rounded-lg bg-accent/15 flex items-center justify-center ring-1 ring-accent/20">

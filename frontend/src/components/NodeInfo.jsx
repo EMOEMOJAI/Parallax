@@ -1,13 +1,17 @@
 import React from 'react'
 import { Copy, Check, Server } from 'lucide-react'
+import IconSwap from './IconSwap'
 
 export default function NodeInfo({ node }) {
   const [copied, setCopied] = React.useState(null)
+  const copiedTimer = React.useRef(null)
+  React.useEffect(() => () => clearTimeout(copiedTimer.current), [])
 
   const copyToClipboard = (text, field) => {
     navigator.clipboard?.writeText(text).then(() => {
       setCopied(field)
-      setTimeout(() => setCopied(null), 2000)
+      clearTimeout(copiedTimer.current)
+      copiedTimer.current = setTimeout(() => setCopied(null), 2000)
     }).catch(() => {
       // Clipboard API can fail if page lacks focus or permissions
     })
@@ -44,7 +48,7 @@ export default function NodeInfo({ node }) {
             {node.ipv4 && (
               <button onClick={() => copyToClipboard(node.ipv4, 'ipv4')} aria-label="Copy IPv4 address"
                 className="p-0.5 rounded hover:bg-hover-overlay transition-colors cursor-pointer">
-                {copied === 'ipv4' ? <Check size={10} className="text-success" /> : <Copy size={10} className="text-text-muted" />}
+                <IconSwap active={copied === 'ipv4'} from={<Copy size={10} className="text-text-muted" />} to={<Check size={10} className="text-success" />} />
               </button>
             )}
           </div>
@@ -56,7 +60,7 @@ export default function NodeInfo({ node }) {
               <span className="font-mono font-medium text-text-primary text-[11px]">{node.ipv6}</span>
               <button onClick={() => copyToClipboard(node.ipv6, 'ipv6')} aria-label="Copy IPv6 address"
                 className="p-0.5 rounded hover:bg-hover-overlay transition-colors cursor-pointer">
-                {copied === 'ipv6' ? <Check size={10} className="text-success" /> : <Copy size={10} className="text-text-muted" />}
+                <IconSwap active={copied === 'ipv6'} from={<Copy size={10} className="text-text-muted" />} to={<Check size={10} className="text-success" />} />
               </button>
             </div>
           </div>

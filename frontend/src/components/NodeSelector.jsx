@@ -1,3 +1,4 @@
+import { motionStateClass } from '../hooks/useMountTransition'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, Wifi, WifiOff, MapPin, Loader, Search } from 'lucide-react'
 import { useDropdown } from '../hooks/useDropdown'
@@ -21,7 +22,8 @@ export default function NodeSelector({ nodes, selectedNode, onSelect, compact, l
     }
     if (nodes.length > SEARCH_THRESHOLD) {
       // Defer focus until the input has actually mounted.
-      requestAnimationFrame(() => searchRef.current?.focus())
+      const frame = requestAnimationFrame(() => searchRef.current?.focus())
+      return () => cancelAnimationFrame(frame)
     }
   }, [open, nodes.length])
 
@@ -90,9 +92,14 @@ export default function NodeSelector({ nodes, selectedNode, onSelect, compact, l
       </button>
 
       {mounted && (
-        <div data-state={state} className="motion-dropdown absolute z-50 top-full left-0 mt-2 min-w-[280px] rounded-xl
+        <div
+          data-state={state}
+          inert={state === 'closing'}
+          aria-hidden={state === 'closing'}
+          data-origin="top-left"
+          className={`t-dropdown ${motionStateClass(state)} absolute z-50 top-full left-0 mt-2 min-w-[280px] rounded-xl
           bg-bg-elevated border border-border/60 backdrop-blur-md
-          shadow-xl shadow-black/40 overflow-hidden">
+          shadow-xl shadow-black/40 overflow-hidden`}>
           {nodes.length === 0 ? (
             <div className="px-4 py-6 text-center text-sm text-text-muted">
               No nodes available
