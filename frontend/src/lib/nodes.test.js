@@ -40,3 +40,13 @@ test('unchanged status preserves state identity and snapshots retain untouched n
   assert.equal(applyNodeStatus(existing, { node_id: 'a', online: true, version: 'old', tools: { ping: true } }), existing)
   assert.deepEqual(reconcileNodeSnapshot(existing, new Map()), existing)
 })
+
+test('reconnect can clear metadata while offline frames preserve it', () => {
+  const original = { ...node, location: 'Old region', flag: 'X', provider: 'Old provider' }
+  const [offline] = applyNodeStatus([original], { node_id: 'a', online: false })
+  assert.equal(offline.location, 'Old region')
+  const [reconnected] = applyNodeStatus([offline], { node_id: 'a', online: true, name: 'Node A', location: '', flag: '', provider: '' })
+  assert.equal(reconnected.location, '')
+  assert.equal(reconnected.flag, '')
+  assert.equal(reconnected.provider, '')
+})
