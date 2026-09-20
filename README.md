@@ -15,11 +15,24 @@ agents into one live dashboard.
 
 [**Get started →**](#try-it-locally) · [Download](https://github.com/EMOEMOJAI/Parallax/releases) · [Documentation](docs/getting-started.md) · [Contribute](CONTRIBUTING.md)
 
+![Parallax dashboard showing ping results, latency summaries, and node details](docs/screenshots/dashboard.jpg)
+
+*The real dashboard, with simulated nodes and diagnostic results.*
+
 ## One dashboard, more answers
 
 - **Compare connections.** Run ping, traceroute, MTR, DNS, TLS and bandwidth tests across locations. See results side by side.
 - **Catch recurring problems.** Schedule probes, track latency between nodes, and connect Prometheus metrics and webhook alerts.
 - **Follow the evidence.** Map routes, share results with a link, and open interactive terminals for a closer look.
+
+<details>
+<summary>See a side-by-side comparison across three locations</summary>
+
+![Parallax comparing simulated ping results from Tokyo, Singapore, and Frankfurt](docs/screenshots/comparison.jpg)
+
+*Run the same diagnostic from multiple nodes and compare the results in one view.*
+
+</details>
 
 ## Try it locally
 
