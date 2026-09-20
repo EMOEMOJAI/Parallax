@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Grid3x3, RefreshCw, Loader } from 'lucide-react'
 import { useFocusTrap } from '../hooks/useFocusTrap'
-import { useMountTransition } from '../hooks/useMountTransition'
+import { motionStateClass, useMountTransition } from '../hooks/useMountTransition'
 import { apiFetch } from '../lib/api'
 
 // Measurement is a server-side job now: the browser asks for one and then
@@ -123,7 +123,7 @@ export default function LatencyMatrix({ visible, onClose, wsRef, canMeasure = tr
   const latency = data?.latency || {}
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div data-state={state} className="motion-layer fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div data-state={state} className="motion-backdrop absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
         ref={dialogRef}
@@ -132,8 +132,10 @@ export default function LatencyMatrix({ visible, onClose, wsRef, canMeasure = tr
         aria-label="Latency Matrix"
         tabIndex={-1}
         data-state={state}
-        className="motion-modal relative w-full max-w-4xl max-h-[85vh] rounded-2xl border border-border/50
-          bg-bg-elevated shadow-2xl shadow-black/50 overflow-hidden flex flex-col"
+        inert={state === 'closing'}
+        aria-hidden={state === 'closing'}
+        className={`t-modal ${motionStateClass(state)} relative w-full max-w-4xl max-h-[85vh] rounded-2xl border border-border/50
+          bg-bg-elevated shadow-2xl shadow-black/50 overflow-hidden flex flex-col`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-border/30">

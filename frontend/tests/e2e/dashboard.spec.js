@@ -378,6 +378,11 @@ for (const screen of [
       // Wait for the lazy module and its map CSS before scanning accessibility.
       await p.locator('.leaflet-container').waitFor()
     }
+    if (screen !== 'dashboard' && screen !== 'mobile dashboard') {
+      // Mounting a dialog schedules its entrance on the next two frames.
+      // Wait for that state before collecting its CSS animations.
+      await expect(p.getByRole('dialog')).toHaveAttribute('data-state', 'open')
+    }
     await p.evaluate(async () => {
       await document.fonts.ready
       await Promise.all(

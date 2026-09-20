@@ -1,3 +1,4 @@
+import { motionStateClass } from '../hooks/useMountTransition'
 import { useState, useEffect } from 'react'
 import { ChevronDown, Play, Square, Terminal as TermIcon, Globe, History, Star, X, SlidersHorizontal } from 'lucide-react'
 import { useDropdown } from '../hooks/useDropdown'
@@ -374,9 +375,14 @@ export default function CommandBar({
         </button>
 
         {cmdDrop.mounted && (
-          <div data-state={cmdDrop.state} className="motion-dropdown absolute z-50 top-full left-0 mt-2 w-48 rounded-xl
+          <div
+            data-state={cmdDrop.state}
+            inert={cmdDrop.state === 'closing'}
+            aria-hidden={cmdDrop.state === 'closing'}
+            data-origin="top-left"
+            className={`t-dropdown ${motionStateClass(cmdDrop.state)} absolute z-50 top-full left-0 mt-2 w-48 rounded-xl
             bg-bg-elevated border border-border/60 backdrop-blur-md
-            shadow-xl shadow-black/40 overflow-hidden py-1">
+            shadow-xl shadow-black/40 overflow-hidden py-1`}>
             {visibleCommands.map((cmd) => {
               const missing = !cmdAvailable(cmd.id)
               return (
@@ -452,9 +458,14 @@ export default function CommandBar({
         </button>
 
         {presetDrop.mounted && (
-          <div data-state={presetDrop.state} className="motion-dropdown absolute z-50 top-full right-0 mt-2 w-72 rounded-xl
+          <div
+            data-state={presetDrop.state}
+            inert={presetDrop.state === 'closing'}
+            aria-hidden={presetDrop.state === 'closing'}
+            data-origin="top-right"
+            className={`t-dropdown ${motionStateClass(presetDrop.state)} absolute z-50 top-full right-0 mt-2 w-72 rounded-xl
             bg-bg-elevated border border-border/60 backdrop-blur-md
-            shadow-xl shadow-black/40 overflow-hidden">
+            shadow-xl shadow-black/40 overflow-hidden`}>
             <div className="px-3 py-2 border-b border-border/30 flex items-center justify-between">
               <span className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
                 Presets ({presets.length}/{maxPresets})
@@ -582,6 +593,7 @@ export default function CommandBar({
       <div ref={histDrop.ref} className="relative shrink-0">
         <button
           onClick={() => histDrop.setOpen(!histDrop.open)}
+          aria-expanded={histDrop.open}
           className="p-2 rounded-lg bg-bg-secondary/40 backdrop-blur-sm border border-border/40
             hover:border-border-hover hover:bg-bg-secondary/60
             transition-colors duration-200 text-text-muted hover:text-text-primary cursor-pointer"
@@ -591,9 +603,14 @@ export default function CommandBar({
         </button>
 
         {histDrop.mounted && history && history.length > 0 && (
-          <div data-state={histDrop.state} className="motion-dropdown absolute z-50 top-full right-0 mt-2 w-72 rounded-xl
+          <div
+            data-state={histDrop.state}
+            inert={histDrop.state === 'closing'}
+            aria-hidden={histDrop.state === 'closing'}
+            data-origin="top-right"
+            className={`t-dropdown ${motionStateClass(histDrop.state)} absolute z-50 top-full right-0 mt-2 w-72 rounded-xl
             bg-bg-elevated border border-border/60 backdrop-blur-md
-            shadow-xl shadow-black/40 overflow-hidden">
+            shadow-xl shadow-black/40 overflow-hidden`}>
             <div className="px-3 py-2 border-b border-border/30 flex items-center justify-between">
               <span className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
                 Recent Commands
@@ -644,9 +661,14 @@ export default function CommandBar({
           </button>
 
           {dnsDrop.mounted && (
-            <div data-state={dnsDrop.state} className="motion-dropdown absolute z-50 top-full right-0 mt-2 w-24 max-h-56 overflow-y-auto rounded-xl
+            <div
+              data-state={dnsDrop.state}
+              inert={dnsDrop.state === 'closing'}
+              aria-hidden={dnsDrop.state === 'closing'}
+              data-origin="top-right"
+              className={`t-dropdown ${motionStateClass(dnsDrop.state)} absolute z-50 top-full right-0 mt-2 w-24 max-h-56 overflow-y-auto rounded-xl
               bg-bg-elevated border border-border/60 backdrop-blur-md
-              shadow-xl shadow-black/40 overflow-hidden py-1">
+              shadow-xl shadow-black/40 overflow-hidden py-1`}>
               {dnsTypeDesc.values.map((o) => (
                 <button
                   key={o.value || 'default'}
@@ -687,10 +709,15 @@ export default function CommandBar({
           </button>
 
           {optDrop.mounted && (
-            <div data-state={optDrop.state} role="dialog" aria-label={`${command} options`}
-              className="motion-dropdown absolute z-50 top-full right-0 mt-2 w-72 rounded-xl
+            <div
+              data-state={optDrop.state}
+              inert={optDrop.state === 'closing'}
+              aria-hidden={optDrop.state === 'closing'}
+              data-origin="top-right"
+              role="dialog" aria-label={`${command} options`}
+              className={`t-dropdown ${motionStateClass(optDrop.state)} absolute z-50 top-full right-0 mt-2 w-72 rounded-xl
                 bg-bg-elevated border border-border/60 backdrop-blur-md
-                shadow-xl shadow-black/40 overflow-hidden">
+                shadow-xl shadow-black/40 overflow-hidden`}>
               <div className="px-3 py-2 border-b border-border/30 flex items-center justify-between">
                 <span className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
                   {command} options
@@ -771,6 +798,8 @@ export default function CommandBar({
         <div ref={ipDrop.ref} className="relative shrink-0">
           <button
             onClick={() => ipDrop.setOpen(!ipDrop.open)}
+            aria-label="IP version"
+            aria-expanded={ipDrop.open}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg
               bg-bg-secondary/40 backdrop-blur-sm border border-border/40
               hover:border-border-hover hover:bg-bg-secondary/60
@@ -781,9 +810,14 @@ export default function CommandBar({
           </button>
 
           {ipDrop.mounted && (
-            <div data-state={ipDrop.state} className="motion-dropdown absolute z-50 top-full right-0 mt-2 w-24 rounded-xl
+            <div
+              data-state={ipDrop.state}
+              inert={ipDrop.state === 'closing'}
+              aria-hidden={ipDrop.state === 'closing'}
+              data-origin="top-right"
+              className={`t-dropdown ${motionStateClass(ipDrop.state)} absolute z-50 top-full right-0 mt-2 w-24 rounded-xl
               bg-bg-elevated border border-border/60 backdrop-blur-md
-              shadow-xl shadow-black/40 overflow-hidden py-1">
+              shadow-xl shadow-black/40 overflow-hidden py-1`}>
               {IP_VERSIONS.map((v) => (
                 <button
                   key={v}

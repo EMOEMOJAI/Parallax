@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Activity, Cpu, HardDrive, Clock, Wifi, WifiOff, RefreshCw } from 'lucide-react'
 import { useFocusTrap } from '../hooks/useFocusTrap'
-import { useMountTransition } from '../hooks/useMountTransition'
+import { motionStateClass, useMountTransition } from '../hooks/useMountTransition'
 import { apiFetch } from '../lib/api'
 
 export default function NodeHealthOverview({ visible, onClose }) {
@@ -49,7 +49,7 @@ export default function NodeHealthOverview({ visible, onClose }) {
   if (!mounted) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div data-state={state} className="motion-layer fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div data-state={state} className="motion-backdrop absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
         ref={dialogRef}
@@ -58,8 +58,10 @@ export default function NodeHealthOverview({ visible, onClose }) {
         aria-label="Node Health Overview"
         tabIndex={-1}
         data-state={state}
-        className="motion-modal relative w-full max-w-3xl max-h-[80vh] rounded-2xl border border-border/50
-          bg-bg-elevated shadow-2xl shadow-black/50 overflow-hidden flex flex-col"
+        inert={state === 'closing'}
+        aria-hidden={state === 'closing'}
+        className={`t-modal ${motionStateClass(state)} relative w-full max-w-3xl max-h-[80vh] rounded-2xl border border-border/50
+          bg-bg-elevated shadow-2xl shadow-black/50 overflow-hidden flex flex-col`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

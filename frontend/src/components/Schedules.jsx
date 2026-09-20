@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Clock, Play, Trash2, Power, RefreshCw, Plus } from 'lucide-react'
 import SummaryBadges from './SummaryBadges'
 import { useFocusTrap } from '../hooks/useFocusTrap'
-import { useMountTransition } from '../hooks/useMountTransition'
+import { motionStateClass, useMountTransition } from '../hooks/useMountTransition'
 import { apiFetch } from '../lib/api'
 import { isToolAvailable, unavailableTitle, unavailableLabel } from '../lib/capabilities'
 
@@ -240,7 +240,7 @@ export default function Schedules({ visible, onClose, nodes }) {
   if (!mounted) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div data-state={state} className="motion-layer fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div data-state={state} className="motion-backdrop absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
         ref={dialogRef}
@@ -249,8 +249,10 @@ export default function Schedules({ visible, onClose, nodes }) {
         aria-label="Scheduled probes"
         tabIndex={-1}
         data-state={state}
-        className="motion-modal relative w-full max-w-3xl max-h-[85vh] rounded-2xl border border-border/50
-          bg-bg-elevated shadow-2xl shadow-black/50 overflow-hidden flex flex-col"
+        inert={state === 'closing'}
+        aria-hidden={state === 'closing'}
+        className={`t-modal ${motionStateClass(state)} relative w-full max-w-3xl max-h-[85vh] rounded-2xl border border-border/50
+          bg-bg-elevated shadow-2xl shadow-black/50 overflow-hidden flex flex-col`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-border/30">

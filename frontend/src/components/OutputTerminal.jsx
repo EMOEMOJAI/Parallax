@@ -1,3 +1,5 @@
+import IconSwap from './IconSwap'
+import StatusToast from './StatusToast'
 import { useRef, useEffect, useState, memo, useCallback, useMemo } from 'react'
 import { Terminal as TermIcon, Copy, Check, Download, Trash2, Share2, X, Loader } from 'lucide-react'
 import SummaryBadges from './SummaryBadges'
@@ -111,6 +113,12 @@ export const OutputLine = memo(function OutputLine({ type, text, geo = null, onI
 export default function OutputTerminal({ lines, nodeName, onClear, runMeta, canShare = true, summary = null }) {
   const containerRef = useRef(null)
   const [copied, setCopied] = useState(false)
+  const copiedTimer = useRef(null)
+  const shareTimer = useRef(null)
+  useEffect(() => () => {
+    clearTimeout(copiedTimer.current)
+    clearTimeout(shareTimer.current)
+  }, [])
   const [sharing, setSharing] = useState(false)
   const [shareToast, setShareToast] = useState('')
   const autoScroll = useRef(true)
@@ -266,7 +274,8 @@ export default function OutputTerminal({ lines, nodeName, onClear, runMeta, canS
   const copyOutput = () => {
     navigator.clipboard?.writeText(getOutputText()).then(() => {
       setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      clearTimeout(copiedTimer.current)
+      copiedTimer.current = setTimeout(() => setCopied(false), 2000)
     }).catch(() => {
       // Clipboard API can fail if page lacks focus or permissions
     })
@@ -275,6 +284,7 @@ export default function OutputTerminal({ lines, nodeName, onClear, runMeta, canS
   const shareRun = useCallback(async () => {
     if (!runMeta || lines.length === 0 || sharing) return
     setSharing(true)
+    clearTimeout(shareTimer.current)
     setShareToast('')
     try {
       // Strip the React-internal _id from each line. Server only stores type + text.
@@ -301,10 +311,10 @@ export default function OutputTerminal({ lines, nodeName, onClear, runMeta, canS
       } catch {
         setShareToast(url)
       }
-      setTimeout(() => setShareToast(''), 4000)
+      shareTimer.current = setTimeout(() => setShareToast(''), 4000)
     } catch (err) {
       setShareToast('Share failed: ' + err.message)
-      setTimeout(() => setShareToast(''), 4000)
+      shareTimer.current = setTimeout(() => setShareToast(''), 4000)
     } finally {
       setSharing(false)
     }
@@ -373,7 +383,7 @@ export default function OutputTerminal({ lines, nodeName, onClear, runMeta, canS
             className="p-1 rounded-md hover:bg-hover-overlay transition-colors text-text-muted hover:text-text-primary cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
             title="Copy output"
           >
-            {copied ? <Check size={13} className="text-success" /> : <Copy size={13} />}
+            <IconSwap active={copied} from={<Copy size={13} />} to={<Check size={13} className="text-success" />} />
           </button>
         </div>
       </div>
@@ -384,11 +394,7 @@ export default function OutputTerminal({ lines, nodeName, onClear, runMeta, canS
         <SummaryBadges summary={summary} className="px-4 py-2 border-b border-border/20 bg-bg-secondary/20" />
       )}
 
-      {shareToast && (
-        <div className="px-4 py-1.5 text-[11px] text-cyan border-b border-cyan/20 bg-cyan/5">
-          {shareToast}
-        </div>
-      )}
+      <StatusToast message={shareToast} />
 
       {/* Body */}
       <div

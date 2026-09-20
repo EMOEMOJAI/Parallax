@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Columns3, Play, Square, Globe, X } from 'lucide-react'
 import SummaryBadges, { parseSummary } from './SummaryBadges'
 import { useFocusTrap } from '../hooks/useFocusTrap'
-import { useMountTransition } from '../hooks/useMountTransition'
+import { motionStateClass, useMountTransition } from '../hooks/useMountTransition'
 import { isToolAvailable, unavailableTitle, unavailableLabel, NATIVE_COMMAND_TYPES } from '../lib/capabilities'
 // The per-tool option descriptors come from CommandBar rather than a copy, so
 // the two surfaces cannot drift — the same class of hazard as the
@@ -290,7 +290,7 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
   const showIpVersion = IP_VERSION_COMMANDS.includes(command)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={handleClose}>
+    <div data-state={state} className="motion-layer fixed inset-0 z-50 flex items-center justify-center p-4" onClick={handleClose}>
       <div data-state={state} className="motion-backdrop absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
         ref={dialogRef}
@@ -299,8 +299,10 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
         aria-label="Multi-Node Comparison"
         tabIndex={-1}
         data-state={state}
-        className="motion-modal relative w-full max-w-6xl max-h-[85vh] rounded-2xl border border-border/50
-          bg-bg-elevated shadow-2xl shadow-black/50 overflow-hidden flex flex-col"
+        inert={state === 'closing'}
+        aria-hidden={state === 'closing'}
+        className={`t-modal ${motionStateClass(state)} relative w-full max-w-6xl max-h-[85vh] rounded-2xl border border-border/50
+          bg-bg-elevated shadow-2xl shadow-black/50 overflow-hidden flex flex-col`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
