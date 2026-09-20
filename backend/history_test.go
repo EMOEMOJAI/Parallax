@@ -733,7 +733,10 @@ func TestMetricsScheduleGaugeAuthMatrix(t *testing.T) {
 			sc := addSchedule(srv, "node-m", "ping", "1.1.1.1")
 			srv.finalizeScheduleWithSummary(sc, "ok", "run", histSummary(t, map[string]any{"avg_ms": 4, "loss_pct": 0}))
 
-			code, body, _ := histGet(t, ts, "/metrics", c.credential)
+			code, body, headers := histGet(t, ts, "/metrics", c.credential)
+			if headers.Get("Cache-Control") != "no-store" {
+				t.Fatal("metrics responses must not be cached")
+			}
 			if code != c.wantStatus {
 				t.Fatalf("status = %d, want %d", code, c.wantStatus)
 			}

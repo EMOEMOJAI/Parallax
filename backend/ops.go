@@ -107,6 +107,7 @@ func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
 // the sole emission path for the per-schedule series, so this is the only gate
 // needed.
 func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	if r.Method != "GET" {
 		writeJSONError(w, "method not allowed", 405)
 		return
