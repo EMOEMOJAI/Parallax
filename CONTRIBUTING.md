@@ -81,6 +81,17 @@ scanning and manual review; it cannot detect every personal detail. Network poli
 tests may contain synthetic private addresses. Do not add real deployment markers
 to a public denylist, since the denylist would disclose those markers itself.
 
+## Recurring audits
+
+[Audit rotation](docs/audit-rotation.md) records review scope, cadence, findings
+and the next area to inspect. Review one chunk per session: authentication,
+public access, command execution and secrets quarterly; parsers, runtime state,
+deployment and dependencies every six months; remaining UI/docs when changed.
+Missing baselines require a first pass. Relevant changes and security advisories
+trigger earlier review. This is a maintainer-run process alongside existing CI;
+record the reviewed revision and evidence without publishing private deployment
+details or sensitive vulnerability reports.
+
 ## Commit privacy before pushing
 
 Install the local guard in every clone before your first push:

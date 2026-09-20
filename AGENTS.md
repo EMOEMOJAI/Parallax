@@ -17,6 +17,11 @@ Read [docs/architecture.md](docs/architecture.md) before changing protocol,
 concurrency, authentication, persistence or compatibility behavior.
 [docs/reference.md](docs/reference.md) is the configuration/API reference.
 
+For recurring audits, read [docs/audit-rotation.md](docs/audit-rotation.md).
+It tracks chunk scope, cadence, reviewed revisions, findings and the next review.
+Keep that record current when running an audit; ordinary changes still use the
+checks below and the contribution workflow.
+
 ## Setup and checks
 
 Use the Go and Node versions pinned in `.github/workflows/ci.yml`.

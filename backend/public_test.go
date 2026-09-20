@@ -347,7 +347,7 @@ func TestClientIPTrustProxyHops(t *testing.T) {
 		{"default hop count takes the right-most entry", "", "1.1.1.1, 2.2.2.2, 3.3.3.3", "", "10.0.0.5:1234", "3.3.3.3"},
 		{"explicit one hop", "1", "1.1.1.1, 2.2.2.2, 3.3.3.3", "", "10.0.0.5:1234", "3.3.3.3"},
 		{"two hops", "2", "1.1.1.1, 2.2.2.2, 3.3.3.3", "", "10.0.0.5:1234", "2.2.2.2"},
-		{"hop count beyond the list clamps to the left-most", "9", "1.1.1.1, 2.2.2.2, 3.3.3.3", "", "10.0.0.5:1234", "1.1.1.1"},
+		{"short chain falls back to transport peer", "9", "1.1.1.1, 2.2.2.2, 3.3.3.3", "", "10.0.0.5:1234", "10.0.0.5"},
 		{"zero hops clamps to one", "0", "1.1.1.1, 2.2.2.2, 3.3.3.3", "", "10.0.0.5:1234", "3.3.3.3"},
 		{"garbage hop count clamps to one", "abc", "1.1.1.1, 2.2.2.2", "", "10.0.0.5:1234", "2.2.2.2"},
 		{"unparseable entry falls back to RemoteAddr", "1", "1.1.1.1, not-an-ip", "", "10.0.0.5:1234", "10.0.0.5"},
@@ -843,5 +843,35 @@ func TestInstallTemplateDocumentsOptIns(t *testing.T) {
 		if !strings.Contains(string(data), want) {
 			t.Errorf("deploy/install.sh .env template is missing %q", want)
 		}
+	}
+}
+
+// Repeated header fields form one ordered chain; a client-controlled first
+// field must not hide the address appended by a trusted proxy.
+func TestRotationForwardedHeaderChain(t *testing.T) {
+	t.Setenv("TRUST_PROXY", "1")
+	for _, tc := range []struct {
+		name   string
+		values []string
+		hops   string
+		want   string
+	}{
+		{"split chain", []string{"192.0.2.1", "198.51.100.2"}, "1", "198.51.100.2"},
+		{"two trusted hops", []string{"192.0.2.1, 198.51.100.2", "203.0.113.3"}, "2", "198.51.100.2"},
+		{"short chain", []string{"192.0.2.1"}, "2", "203.0.113.10"},
+		{"empty forwarded field blocks real IP fallback", []string{""}, "1", "203.0.113.10"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("TRUSTED_PROXY_HOPS", tc.hops)
+			r := httptest.NewRequest("GET", "/api/nodes", nil)
+			r.RemoteAddr = "203.0.113.10:1234"
+			for _, value := range tc.values {
+				r.Header.Add("X-Forwarded-For", value)
+			}
+			r.Header.Set("X-Real-IP", "192.0.2.99")
+			if got := clientIP(r); got != tc.want {
+				t.Fatalf("clientIP = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }

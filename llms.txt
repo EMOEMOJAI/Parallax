@@ -23,6 +23,7 @@ The project is released under the MIT license.
 
 - [Agent instructions](https://raw.githubusercontent.com/EMOEMOJAI/Parallax/main/AGENTS.md): Repository map, checks and implementation constraints.
 - [Contributing](https://raw.githubusercontent.com/EMOEMOJAI/Parallax/main/CONTRIBUTING.md): Verification and issue/PR guidance.
+- [Audit rotation](https://raw.githubusercontent.com/EMOEMOJAI/Parallax/main/docs/audit-rotation.md): Recurring review areas, cadence, coverage and findings.
 - [Source](https://github.com/EMOEMOJAI/Parallax): Canonical repository.
 - [License](https://raw.githubusercontent.com/EMOEMOJAI/Parallax/main/LICENSE): MIT terms.
 
