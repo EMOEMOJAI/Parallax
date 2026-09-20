@@ -1,0 +1,42 @@
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+
+# Dependencies
+frontend/node_modules/
+
+# Build output
+.deployment/
+frontend/dist/
+agent/looking-glass-agent
+backend/looking-glass
+backend/looking-glass-server
+agent/parallax-agent
+backend/parallax-server
+
+# Runtime state written by local server runs
+**/schedules.json
+**/schedules.json.*
+__pycache__/
+*.pyc
+
+# Environment / secrets
+.env
+*.env
+
+# Local credentials and deployment state
+.env.*
+!.env.example
+*.pem
+*.key
+.deploy-key-path
+private/
+
+# SSH material must stay outside source/build contexts
+**/.ssh/
+**/id_rsa
+**/id_ed25519
+**/parallax-deploy
+**/looking-glass-deploy

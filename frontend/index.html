@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Parallax — Self-hosted Network Looking Glass</title>
+    <meta name="description" content="Compare network connectivity across locations with Parallax: a self-hosted looking glass for ping, traceroute, MTR, DNS, TLS, bandwidth tests and scheduled probes." />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#121218" />
+
+    <!-- Icons. favicon-*.png are the simplified mark (legible at 16–32 px);
+         the 180/192/512 icons are the detailed app icon. -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <!-- Served as manifest.json, not .webmanifest: the server sets
+         X-Content-Type-Options: nosniff and Go has no MIME entry for
+         .webmanifest, so the browser would reject it as text/plain. -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="alternate" type="text/plain" href="/llms.txt" title="Parallax documentation index" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Parallax" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content="Parallax — Self-hosted Network Looking Glass" />
+    <meta property="og:description" content="Ping, traceroute, MTR, DNS, TLS and bandwidth tests across remote agents. Live results, scheduled checks and a node-to-node latency matrix." />
+    <meta property="og:image" content="/og-banner.jpg" />
+    <meta property="og:image:alt" content="Parallax — network diagnostics from every vantage point" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Parallax — Self-hosted Network Looking Glass" />
+    <meta name="twitter:description" content="Diagnose connectivity across locations with live network probes, scheduled checks and a latency matrix." />
+    <meta name="twitter:image" content="/og-banner.jpg" />
+    <meta name="twitter:image:alt" content="Parallax — network diagnostics from every vantage point" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareSourceCode",
+        "name": "Parallax",
+        "description": "Self-hosted network looking glass with remote agents, live diagnostic probes, scheduled checks and a latency matrix.",
+        "codeRepository": "https://github.com/EMOEMOJAI/Parallax",
+        "license": "https://github.com/EMOEMOJAI/Parallax/blob/main/LICENSE",
+        "programmingLanguage": ["Go", "JavaScript"],
+        "runtimePlatform": "Go, Node.js, Docker"
+      }
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>
+      <main>
+        <h1>Parallax — Network Looking Glass</h1>
+        <p>Compare connectivity across remote locations with ping, traceroute, MTR,
+          DNS, TLS and bandwidth tests. Parallax also supports scheduled probes,
+          a latency matrix, Prometheus metrics and webhook alerts.</p>
+        <p>Enable JavaScript to use the live dashboard.</p>
+        <nav aria-label="Project documentation">
+          <a href="https://github.com/EMOEMOJAI/Parallax">Project and source code</a>
+          · <a href="https://github.com/EMOEMOJAI/Parallax/blob/main/docs/getting-started.md">Getting started</a>
+          · <a href="/llms.txt">Documentation index</a>
+        </nav>
+      </main>
+    </noscript>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

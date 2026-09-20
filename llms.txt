@@ -1,0 +1,31 @@
+# Parallax
+
+> Self-hosted network looking glass with a Go server, remote Go agents and a React dashboard. Diagnose connectivity across locations with live probes, scheduled checks and a node-to-node latency matrix.
+
+Parallax supports ping, traceroute, mtr, nexttrace, iperf3, speedtest, dns, http,
+tcp, tls, dnsbench and download. The last four are Go-native. It also provides
+PTY sessions, saved-run links, diagnostic kits, Prometheus metrics and webhook
+alerts. Shell sessions default to enabled; public sessions cannot open shells.
+
+The repository is the project source. A self-hosted instance's nodes, schedules,
+credentials and saved results are operator data, not project documentation.
+The project is released under the MIT license.
+
+## Documentation
+
+- [Overview](https://raw.githubusercontent.com/EMOEMOJAI/Parallax/main/README.md): Features and Docker quick start.
+- [Getting started](https://raw.githubusercontent.com/EMOEMOJAI/Parallax/main/docs/getting-started.md): Local development, builds and agent connection.
+- [Deployment](https://raw.githubusercontent.com/EMOEMOJAI/Parallax/main/docs/deployment.md): Installation, authentication, updates and rollback.
+- [Configuration and API](https://raw.githubusercontent.com/EMOEMOJAI/Parallax/main/docs/reference.md): Probe support, agent flags, environment variables and route authentication.
+- [Architecture](https://raw.githubusercontent.com/EMOEMOJAI/Parallax/main/docs/architecture.md): Protocol, concurrency, persistence and compatibility.
+
+## Development
+
+- [Agent instructions](https://raw.githubusercontent.com/EMOEMOJAI/Parallax/main/AGENTS.md): Repository map, checks and implementation constraints.
+- [Contributing](https://raw.githubusercontent.com/EMOEMOJAI/Parallax/main/CONTRIBUTING.md): Verification and issue/PR guidance.
+- [Source](https://github.com/EMOEMOJAI/Parallax): Canonical repository.
+- [License](https://raw.githubusercontent.com/EMOEMOJAI/Parallax/main/LICENSE): MIT terms.
+
+## Optional
+
+- [Brand assets](https://raw.githubusercontent.com/EMOEMOJAI/Parallax/main/docs/brand/README.md): Logos, icons and social images.

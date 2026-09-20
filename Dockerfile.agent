@@ -1,0 +1,24 @@
+FROM golang:1.27.1-alpine3.24 AS build
+# The build stage copies only agent/ and therefore has no git metadata, so the
+# build identity cannot be derived here — pass it in with
+# `docker build --build-arg AGENT_VERSION=v1.2.3`; it defaults to "docker".
+ARG AGENT_VERSION=docker
+WORKDIR /app
+COPY agent/ ./
+RUN go mod download
+RUN CGO_ENABLED=0 go build -trimpath -ldflags "-X main.version=$AGENT_VERSION" -o agent .
+
+FROM alpine:3.24
+RUN apk add --no-cache \
+    ca-certificates \
+    iputils \
+    traceroute \
+    mtr \
+    iperf3 \
+    curl \
+    bind-tools
+RUN adduser -D -h /app appuser
+WORKDIR /app
+COPY --from=build /app/agent .
+USER appuser
+ENTRYPOINT ["./agent"]

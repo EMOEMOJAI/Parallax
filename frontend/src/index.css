@@ -1,0 +1,203 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg-primary: #121218;
+  --color-bg-secondary: #1a1a22;
+  --color-bg-tertiary: #22222c;
+  --color-bg-elevated: #282833;
+
+  --color-text-primary: #f0f0f5;
+  --color-text-secondary: #b0b0be;
+  --color-text-muted: #a1a1b5;
+
+  --color-border: #2e2e3d;
+  --color-border-hover: #44445a;
+
+  --color-accent: #8b5cf6;
+  --color-accent-text: #b79bff;
+  --color-accent-text-hover: #cbb5ff;
+  --color-accent-hover: #7c3aed;
+  --color-accent-muted: rgba(139, 92, 246, 0.18);
+  --color-success: #22c55e;
+  --color-success-muted: rgba(34, 197, 94, 0.18);
+  --color-danger: #ef4444;
+  --color-danger-muted: rgba(239, 68, 68, 0.18);
+  --color-warning: #f59e0b;
+  --color-warning-muted: rgba(245, 158, 11, 0.18);
+  --color-cyan: #06b6d4;
+  --color-cyan-muted: rgba(6, 182, 212, 0.18);
+
+  --color-glass-bg: rgba(255, 255, 255, 0.04);
+  --color-glass-border: rgba(255, 255, 255, 0.08);
+  --color-hover-overlay: rgba(255, 255, 255, 0.08);
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(30px, -20px); }
+  50% { transform: translate(-20px, 15px); }
+  75% { transform: translate(15px, 25px); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 0.4; }
+  50% { transform: translateY(-20px) scale(1.5); opacity: 0.8; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(34, 197, 94, 0.4); }
+  50% { box-shadow: 0 0 16px rgba(34, 197, 94, 0.6); }
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Terminal styling */
+.terminal-container .xterm {
+  padding: 16px;
+}
+
+.terminal-container .xterm-viewport {
+  overflow-y: auto !important;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-hover);
+}
+
+/* Leaflet dark popup */
+.leaflet-popup-content-wrapper {
+  background: #1c1c1f !important;
+  border: 1px solid #2e2e3d !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+}
+.leaflet-popup-tip {
+  background: #1c1c1f !important;
+  border: 1px solid #2e2e3d !important;
+}
+.leaflet-popup-close-button {
+  color: #8888a0 !important;
+}
+.leaflet-popup-close-button:hover {
+  color: #f0f0f5 !important;
+}
+.leaflet-container {
+  background: #121218 !important;
+}
+
+/* ── Motion tokens ──────────────────────────────────────────────────────────
+   The transitions.dev scale. Durations follow open/close asymmetry: an open
+   invites (250ms), a close gets out of the way (150ms). Referenced from JSX as
+   duration-[var(--duration-fast)] / ease-[var(--ease-smooth-out)].            */
+:root {
+  --duration-stagger: 40ms;
+  --duration-micro: 80ms;
+  --duration-quick: 150ms;
+  --duration-fast: 250ms;
+  --duration-medium: 350ms;
+  --duration-slow: 400ms;
+  --duration-very-slow: 500ms;
+
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: ease-in-out;
+  --ease-out: ease-out;
+  --ease-linear: linear;
+  --ease-bounce: cubic-bezier(0.34, 1.36, 0.64, 1);
+  --ease-bounce-strong: cubic-bezier(0.34, 3.85, 0.64, 1);
+
+  --distance-micro: 4px;
+  --distance-small: 6px;
+  --distance-base: 8px;
+  --distance-medium: 12px;
+  --distance-large: 30px;
+
+  --scale-large: 0.96;
+  --scale-medium: 0.97;
+  --scale-small: 0.98;
+  --scale-tiny: 0.99;
+
+  --blur-small: 2px;
+  --blur-medium: 3px;
+  --blur-large: 8px;
+}
+
+/* Surfaces that mount and unmount. Pair with useMountTransition: render while
+   `mounted`, and set data-state from `state`. */
+.motion-backdrop {
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-smooth-out);
+}
+.motion-backdrop[data-state='open'] {
+  opacity: 1;
+}
+.motion-backdrop[data-state='closing'] {
+  opacity: 0;
+  transition-duration: var(--duration-quick);
+}
+
+.motion-modal {
+  opacity: 0;
+  transform: scale(var(--scale-large));
+  transition:
+    opacity var(--duration-fast) var(--ease-smooth-out),
+    transform var(--duration-fast) var(--ease-smooth-out);
+}
+.motion-modal[data-state='open'] {
+  opacity: 1;
+  transform: scale(1);
+}
+.motion-modal[data-state='closing'] {
+  opacity: 0;
+  transform: scale(var(--scale-large));
+  transition-duration: var(--duration-quick);
+}
+
+.motion-dropdown {
+  opacity: 0;
+  transform: scale(var(--scale-medium));
+  transform-origin: top;
+  transition:
+    opacity var(--duration-fast) var(--ease-smooth-out),
+    transform var(--duration-fast) var(--ease-smooth-out);
+}
+.motion-dropdown[data-state='open'] {
+  opacity: 1;
+  transform: scale(1);
+}
+.motion-dropdown[data-state='closing'] {
+  opacity: 0;
+  transform: scale(var(--scale-tiny));
+  transition-duration: var(--duration-quick);
+}
+
+/* The ambient background drifts and the status dots pulse forever; honour a
+   reduced-motion preference by stopping all of it. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,27 @@
+.git
+.github
+.deployment
+private
+**/node_modules
+**/dist
+**/.DS_Store
+**/__pycache__
+**/*.pyc
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/.deploy-key-path
+**/schedules.json*
+backend/looking-glass
+backend/looking-glass-server
+backend/parallax-server
+agent/looking-glass-agent
+agent/parallax-agent
+
+# SSH material must stay outside source/build contexts
+**/.ssh/
+**/id_rsa
+**/id_ed25519
+**/parallax-deploy
+**/looking-glass-deploy

@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# All jobs use disposable GitHub-hosted runners, including pull requests.
+jobs:
+  go:
+    name: Go (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [backend, agent]
+    defaults:
+      run:
+        working-directory: ${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.27.1'
+          cache-dependency-path: '**/go.sum'
+      - run: go vet ./...
+      - run: go test -race ./...
+      - name: Check formatting
+        run: test -z "$(gofmt -l .)"
+      - name: Check known Go vulnerabilities
+        run: |
+          go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm audit --audit-level=low
+      - run: npm test
+      - run: npm run build
+      - name: Reject unsafe HTML rendering
+        run: |
+          if grep -r 'dangerouslySetInnerHTML' src; then
+            exit 1
+          fi
+
+  deployment:
+    name: Deployment scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Check shell syntax and lint
+        run: |
+          for script in deploy/*.sh; do bash -n "$script"; done
+          shellcheck deploy/*.sh
+      - run: python3 -m unittest discover -s deploy/tests
+      - run: docker compose config --quiet
+
+  containers:
+    name: Container (${{ matrix.component }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [server, agent]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Build production image
+        run: |
+          build_args=()
+          if [ "${{ matrix.component }}" = agent ]; then
+            build_args+=(--build-arg "AGENT_VERSION=$GITHUB_SHA")
+          fi
+          docker build "${build_args[@]}" --file "Dockerfile.${{ matrix.component }}" --tag "parallax-${{ matrix.component }}:ci" .

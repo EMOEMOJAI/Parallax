@@ -1,0 +1,26 @@
+FROM node:24-alpine3.24 AS frontend
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+COPY llms.txt /app/llms.txt
+RUN npm run build
+
+FROM golang:1.27.1-alpine3.24 AS backend
+WORKDIR /app
+COPY backend/ ./
+RUN go mod download
+RUN CGO_ENABLED=0 go build -trimpath -o server .
+
+FROM alpine:3.24
+RUN apk add --no-cache ca-certificates
+RUN adduser -D -h /app appuser
+WORKDIR /app
+COPY --from=backend /app/server .
+COPY --from=frontend /app/frontend/dist ./frontend/dist
+RUN mkdir -p /app/data && chown appuser:appuser /app/data
+USER appuser
+ENV SCHEDULES_FILE=/app/data/schedules.json
+ENV PORT=8080
+EXPOSE 8080
+CMD ["./server"]
