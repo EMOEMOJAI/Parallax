@@ -129,7 +129,7 @@ Schedule results feed:
 ### Metadata lookup transport
 
 GeoIP and RDAP lookups connect directly to public provider addresses; environment
-HTTP proxies are not used for these requests. Private, local and special-use
+HTTP proxies are not used for these requests. Private, on-link (including global IPv6), and special-use
 addresses are rejected after DNS resolution and on redirect connections. Redirects
 require HTTPS and are limited to five hops. TLS certificate verification remains
 enabled. Lookups stop when the requesting client disconnects. The free GeoIP

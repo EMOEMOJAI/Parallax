@@ -17,15 +17,18 @@ func metadataPublicAddress(ip netip.Addr) bool {
 	if !ip.IsValid() || ip.Zone() != "" || !ip.IsGlobalUnicast() || ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
 		return false
 	}
-	for _, block := range []string{"0.0.0.0/8", "100.64.0.0/10", "192.0.0.0/24", "192.0.2.0/24", "198.18.0.0/15", "198.51.100.0/24", "203.0.113.0/24", "240.0.0.0/4", "64:ff9b::/96", "64:ff9b:1::/48", "2001::/32", "2001:db8::/32", "2002::/16"} {
+	for _, block := range []string{"0.0.0.0/8", "100.64.0.0/10", "192.0.0.0/24", "192.0.2.0/24", "198.18.0.0/15", "198.51.100.0/24", "203.0.113.0/24", "192.88.99.0/24", "240.0.0.0/4", "64:ff9b::/96", "64:ff9b:1::/48", "2001::/32", "2001:db8::/32", "2001:10::/28", "2001:20::/28", "3fff::/20", "2002::/16"} {
 		if netip.MustParsePrefix(block).Contains(ip) {
 			return false
 		}
 	}
-	return true
+	// Restrict IPv6 to allocated global-unicast space, excluding deprecated
+	// site-local and translation encodings not covered by IsPrivate.
+	return ip.Is4() || netip.MustParsePrefix("2000::/3").Contains(ip)
 }
 
 type metadataDialer struct {
+	local  func() ([]netip.Prefix, error)
 	lookup func(context.Context, string, string) ([]netip.Addr, error)
 	dial   func(context.Context, string, string) (net.Conn, error)
 }
@@ -42,7 +45,19 @@ func (d metadataDialer) dialContext(ctx context.Context, network, address string
 	if len(ips) == 0 {
 		return nil, fmt.Errorf("metadata host has no addresses")
 	}
+	var local []netip.Prefix
+	if d.local != nil {
+		local, err = d.local()
+		if err != nil {
+			return nil, fmt.Errorf("cannot verify local metadata address boundary")
+		}
+	}
 	for _, ip := range ips {
+		for _, prefix := range local {
+			if prefix.Contains(ip.Unmap()) {
+				return nil, fmt.Errorf("metadata destination is on a local network")
+			}
+		}
 		if !metadataPublicAddress(ip) {
 			return nil, fmt.Errorf("metadata destination is not public")
 		}
@@ -61,7 +76,7 @@ func (d metadataDialer) dialContext(ctx context.Context, network, address string
 }
 
 func newMetadataClient() *http.Client {
-	d := metadataDialer{lookup: net.DefaultResolver.LookupNetIP, dial: (&net.Dialer{Timeout: 5 * time.Second}).DialContext}
+	d := metadataDialer{local: metadataLocalPrefixes, lookup: net.DefaultResolver.LookupNetIP, dial: (&net.Dialer{Timeout: 5 * time.Second}).DialContext}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	// An environment proxy resolves destinations itself and would bypass the
 	// address check. These fixed public-provider lookups use direct transport.
@@ -79,4 +94,20 @@ func newMetadataClient() *http.Client {
 			return nil
 		},
 	}
+}
+
+func metadataLocalPrefixes() ([]netip.Prefix, error) {
+	addresses, err := net.InterfaceAddrs()
+	if err != nil {
+		return nil, err
+	}
+	prefixes := make([]netip.Prefix, 0, len(addresses))
+	for _, address := range addresses {
+		prefix, err := netip.ParsePrefix(address.String())
+		if err != nil {
+			return nil, err
+		}
+		prefixes = append(prefixes, prefix.Masked())
+	}
+	return prefixes, nil
 }

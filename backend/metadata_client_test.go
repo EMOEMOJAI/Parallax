@@ -14,7 +14,7 @@ import (
 )
 
 func TestMetadataDialRejectsPrivateAnswersBeforeConnecting(t *testing.T) {
-	for _, address := range []string{"127.0.0.1", "10.0.0.1", "169.254.169.254", "100.64.0.1", "::1", "fc00::1", "::ffff:127.0.0.1", "64:ff9b::7f00:1", "2002:7f00:1::", "fe80::1%eth0"} {
+	for _, address := range []string{"127.0.0.1", "10.0.0.1", "169.254.169.254", "100.64.0.1", "::1", "fc00::1", "::ffff:127.0.0.1", "64:ff9b::7f00:1", "2002:7f00:1::", "fe80::1%eth0", "fec0::1", "::ffff:0:127.0.0.1", "3fff::1"} {
 		t.Run(address, func(t *testing.T) {
 			d := metadataDialer{
 				lookup: func(context.Context, string, string) ([]netip.Addr, error) {
@@ -70,7 +70,7 @@ func TestMetadataRedirectCannotReachPrivateListener(t *testing.T) {
 		}
 		return transport.RoundTrip(r)
 	})
-	if _, err := client.Get("https://rdap.org/domain/example.com"); err == nil || !strings.Contains(err.Error(), "not public") {
+	if _, err := client.Get("https://rdap.org/domain/example.com"); err == nil || !strings.Contains(err.Error(), "metadata destination") {
 		t.Fatalf("redirect result: %v", err)
 	}
 }
@@ -123,5 +123,25 @@ func TestMetadataHandlersPropagateCancellation(t *testing.T) {
 				t.Fatalf("called=%v status=%d", called, w.Code)
 			}
 		})
+	}
+}
+
+func TestMetadataDialRejectsOnLinkGlobalIPv6(t *testing.T) {
+	d := metadataDialer{
+		lookup: func(context.Context, string, string) ([]netip.Addr, error) {
+			return []netip.Addr{netip.MustParseAddr("2001:4860::2")}, nil
+		},
+		local: func() ([]netip.Prefix, error) { return []netip.Prefix{netip.MustParsePrefix("2001:4860::/64")}, nil },
+		dial: func(context.Context, string, string) (net.Conn, error) {
+			t.Fatal("on-link address dialed")
+			return nil, nil
+		},
+	}
+	if _, err := d.dialContext(context.Background(), "tcp", "metadata.example.com:443"); err == nil {
+		t.Fatal("on-link destination accepted")
+	}
+	d.local = func() ([]netip.Prefix, error) { return nil, errors.New("interface enumeration failed") }
+	if _, err := d.dialContext(context.Background(), "tcp", "metadata.example.com:443"); err == nil {
+		t.Fatal("failed interface inspection allowed connection")
 	}
 }
