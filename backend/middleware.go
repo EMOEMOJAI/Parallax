@@ -122,7 +122,7 @@ func securityHeaders(next http.HandlerFunc) http.HandlerFunc {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' https://*.basemaps.cartocdn.com https://*.carto.com data:; connect-src 'self' ws: wss:; font-src 'self' https://fonts.gstatic.com")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' https://tile.openstreetmap.org data:; connect-src 'self' ws: wss:; font-src 'self' https://fonts.gstatic.com")
 		if hstsEnabled {
 			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		}

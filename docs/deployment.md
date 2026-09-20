@@ -75,6 +75,17 @@ data directory, preserving node names and connection settings. Restart and
 verify the server and each agent before retiring the backup. Never copy the
 old clone's hooks or Git configuration into the new clone.
 
+## Map tiles
+
+The network map loads standard OpenStreetMap tiles directly in the browser;
+no API key is required. Keep the visible attribution and the server's
+`strict-origin-when-cross-origin` referrer policy. Tile requests disclose the
+visitor's IP address and site origin to the provider. Normal interactive use
+must follow the [tile usage policy](https://operations.osmfoundation.org/policies/tiles/);
+bulk downloads, offline prefetching and cache bypass are not supported.
+For high-volume or offline deployments, use an appropriate tile provider or
+self-hosted tiles, updating both `GeoMap.jsx` and the server's `img-src` CSP.
+
 ## Containers
 
 ```sh

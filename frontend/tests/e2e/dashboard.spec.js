@@ -3,6 +3,26 @@ import assert from 'node:assert/strict'
 import AxeBuilder from '@axe-core/playwright'
 import { openDashboard, nodes, chooseCommand } from './fixtures.js'
 
+test('network map requests keyless tiles and displays provider attribution', async ({ context }) => {
+  const page = await openDashboard(context)
+  const requests = []
+  // Keep CI independent of the community tile service and its usage quota.
+  await page.route('https://tile.openstreetmap.org/**', (route) => {
+    requests.push(route.request().url())
+    return route.fulfill({
+      contentType: 'image/png',
+      body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64'),
+    })
+  })
+  await page.getByTitle('Network map', { exact: true }).click()
+  await expect(page.locator('.leaflet-tile-loaded').first()).toBeVisible()
+  expect(requests.length).toBeGreaterThan(0)
+  expect(requests.every((url) => /^https:\/\/tile\.openstreetmap\.org\/\d+\/\d+\/\d+\.png$/.test(url))).toBe(true)
+  await expect(page.locator('.leaflet-control-attribution')).toContainText('OpenStreetMap contributors')
+  await expect(page.locator('.leaflet-control-attribution a[href="https://www.openstreetmap.org/copyright"]')).toBeVisible()
+  expect(page.errors).toEqual([])
+})
+
 test('failed command is displayed as failed', async ({ context }) => {
   const p = await openDashboard(context)
   await p.getByLabel('Command target', { exact: true }).fill('example.com')
