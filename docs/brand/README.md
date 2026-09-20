@@ -8,7 +8,7 @@ with endpoint dots on a dark background. The reusable assets are listed below.
 | `parallax-appicon.png` | 512 x 512 | The icon as drawn, transparent squircle corners |
 | `parallax-mark.png` | 512 x 512 | Same artwork, for embedding |
 | `parallax-mono.png` | 512 x 512 | White mark on transparency, for single-colour contexts |
-| `parallax-lockup.jpg` | 1400 x 420 | Icon + wordmark, for READMEs and slides |
+| `parallax-lockup.jpg` | 2172 x 724 | README banner with wordmark and abstract network paths |
 | `parallax-banner.jpg` | 1280 x 640 | GitHub social preview (Settings -> Social preview) |
 
 The app-served derivatives are in `frontend/public/` and wired up in `frontend/index.html`:
@@ -24,9 +24,10 @@ in the same gradient. Every size from 32px up is the artwork as drawn. `favicon.
 carries **per-size artwork** rather than one image resampled, which is what a multi-resolution ICO is
 for — note that PIL's ICO writer resamples a single source and cannot produce this.
 
-**The lockup and the banner are composed, not drawn.** The icon has no wordmark, so
-those two set the icon beside "Parallax" on the icon's own background colour. If a real wordmark is
-ever commissioned, replace them rather than editing them.
+**The README banner has its own composition.** `parallax-lockup.jpg` pairs the
+wordmark with purple and cyan network paths through translucent glass planes.
+The social-preview asset, `parallax-banner.jpg`, retains the icon-and-wordmark
+layout. The README banner does not replace the app icons or favicons.
 
 `apple-touch-icon.png` is deliberately **opaque** (corners filled with the tile colour) because iOS
 applies its own mask and does not handle transparency here; the PWA icons and favicons keep the
