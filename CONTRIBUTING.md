@@ -111,12 +111,13 @@ Run the **Release** workflow manually to test packaging without publishing. It
 runs CI, including Linux amd64 and arm64 archive builds on their native GitHub
 runners. Both PRs and releases extract and run the exact archives before uploading
 them, checking the dashboard assets, authentication, agent version and shell
-protocol. The publication job uses those tested archives without rebuilding. Server archives
-include the dashboard; run the server from the extracted directory. Agents still
+protocol. The publication job uses those tested archives without rebuilding.
+Server archives include the dashboard; run the server from the extracted directory. Agents still
 need the external diagnostic tools described in the deployment guide.
 
 To publish, tag a tested commit on `main` with `vMAJOR.MINOR.PATCH` and push that
-tag. CI must pass again before packaging. Tags with a suffix, such as
+tag. All CI checks and native archive tests must pass before publication. Tags
+with a suffix, such as
 `v1.2.3-rc.1`, create prereleases. Published releases include `SHA256SUMS` and GitHub
 build provenance. Verify downloaded archives with `sha256sum -c SHA256SUMS` and
 `gh attestation verify <archive.tar.gz> --repo EMOEMOJAI/Parallax`.
