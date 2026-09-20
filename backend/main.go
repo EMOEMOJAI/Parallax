@@ -83,10 +83,12 @@ type Server struct {
 	// scheduleRuns maps the cmdID assigned to a scheduled execution back to
 	// its Schedule so handleAgentOutput can route output to the schedule's
 	// buffer instead of trying to forward it to a nonexistent browser owner.
-	schedules      map[string]*Schedule
-	schedulesMu    sync.RWMutex
-	scheduleRuns   map[string]*Schedule
-	scheduleRunsMu sync.RWMutex
+	schedules map[string]*Schedule
+	// Failed startup loads must never be overwritten by an empty snapshot.
+	scheduleLoadFailed atomic.Bool
+	schedulesMu        sync.RWMutex
+	scheduleRuns       map[string]*Schedule
+	scheduleRunsMu     sync.RWMutex
 
 	// Coalescing state for saveSchedules (leading edge + one trailing write
 	// per scheduleSaveInterval). It lives on Server rather than in a package

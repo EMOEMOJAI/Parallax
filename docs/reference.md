@@ -135,3 +135,7 @@ require HTTPS and are limited to five hops. TLS certificate verification remains
 enabled. Lookups stop when the requesting client disconnects. The free GeoIP
 provider uses HTTP for its initial request, so its location data is advisory and
 not a trusted identity or authorization input.
+
+If the schedules file cannot be read or parsed at startup, the server preserves it
+and returns HTTP 503 for schedule requests. Repair or restore the file and restart
+the server to resume scheduling; other diagnostic features remain available.
