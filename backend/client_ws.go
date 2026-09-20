@@ -489,7 +489,8 @@ func (s *Server) handleClientCommand(conn *websocket.Conn, clientMu *sync.Mutex,
 		return
 	}
 
-	log.Printf("Command: %s %s on node %s by %s", req.Command.Type, req.Command.Target, req.NodeID, conn.RemoteAddr())
+	// Targets may contain URL credentials or signed query parameters.
+	log.Printf("Command: %s (id=%q) on node %q by %s", req.Command.Type, req.Command.ID, req.NodeID, conn.RemoteAddr())
 
 	// Enforce per-client concurrency limit to prevent resource exhaustion.
 	// Global cap protects the server; per-node cap protects a single agent

@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -304,5 +306,19 @@ func TestNativeAddressPolicyBlocksLocalUseTranslation(t *testing.T) {
 	got := embeddedIPv4s(netip.MustParseAddr("64:ff9b::c0a8:1"))
 	if len(got) != 1 || got[0].String() != "192.168.0.1" {
 		t.Fatalf("NAT64 embedded address = %v", got)
+	}
+}
+
+func TestCommandLogOmitsSensitiveTarget(t *testing.T) {
+	withTestCommand(t, "testlogprivacy", func(CommandRequest) (string, []string, error) {
+		return "/bin/true", nil, nil
+	})
+	var output bytes.Buffer
+	old := log.Writer()
+	log.SetOutput(&output)
+	defer log.SetOutput(old)
+	runExecuteCommand(t, CommandRequest{ID: "log-test", Type: "testlogprivacy", Target: "https://example.com/private-token-path?key=synthetic-secret"})
+	if text := output.String(); strings.Contains(text, "synthetic-secret") || strings.Contains(text, "private-token-path") || !strings.Contains(text, "log-test") {
+		t.Fatal("command logs must preserve identity without target credentials")
 	}
 }

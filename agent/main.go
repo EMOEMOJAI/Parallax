@@ -1640,7 +1640,8 @@ func executeCommandContext(parent context.Context, conn *websocket.Conn, cmd Com
 		return
 	}
 
-	log.Printf("Executing command: %s %q (id=%q)", cmd.Type, cmd.Target, cmd.ID)
+	// Targets may contain credentials; retain only command identity in logs.
+	log.Printf("Executing command: %s (id=%q)", cmd.Type, cmd.ID)
 
 	// Validate target is non-empty for commands that require one
 	if cmd.Type != "speedtest" && strings.TrimSpace(cmd.Target) == "" {

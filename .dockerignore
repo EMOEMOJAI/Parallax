@@ -28,3 +28,7 @@ agent/parallax-agent
 **/playwright-report
 **/test-results
 release-dist
+
+# Credential containers
+**/*.p12
+**/*.pfx

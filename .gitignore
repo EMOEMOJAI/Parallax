@@ -46,3 +46,7 @@ frontend/playwright-report/
 frontend/test-results/
 test-results/
 release-dist/
+
+# Credential containers
+*.p12
+*.pfx
