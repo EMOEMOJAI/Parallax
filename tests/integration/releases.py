@@ -118,7 +118,8 @@ def main():
             assert b'lookingglass_' in request('/metrics', metrics_key)
             start('agent', ['-server', f'ws://127.0.0.1:{port}/ws/agent', '-name', 'Release-test', '-auto-ip=false', '-allow-shell=true'])
             nodes = wait_for(lambda: [node for node in json.loads(request('/api/nodes', client_key)) if node['online']])
-            assert nodes[0].get('version') == os.environ['RELEASE_VERSION'], 'Agent build version is incorrect'
+            # The server deliberately caps reported build identities at 32 characters.
+            assert nodes[0].get('version') == os.environ['RELEASE_VERSION'][:32], 'Agent build version is incorrect'
             ws = websocket.create_connection(f'ws://127.0.0.1:{port}/ws/client',
                                             header=['Authorization: Bearer ' + client_key], timeout=10)
             result = exercise_session(ws, nodes[0]['id'])

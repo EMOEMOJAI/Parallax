@@ -15,6 +15,7 @@ jobs:
       RELEASE_ARCH: ${{ matrix.arch }}
       RELEASE_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || github.sha }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - arch: amd64
