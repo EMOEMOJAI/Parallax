@@ -1,0 +1,57 @@
+name: Release archive checks
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  archives:
+    name: Archive (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    env:
+      RELEASE_ARCH: ${{ matrix.arch }}
+      RELEASE_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || github.sha }}
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.1'
+          cache-dependency-path: '**/go.sum'
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci && npm run build
+        working-directory: frontend
+      - name: Package binaries and dashboard
+        run: python3 scripts/package-release.py
+      - name: Install integration test dependencies
+        run: python3 -m pip install -r tests/integration/requirements.txt
+      - name: Run the extracted archives on the native CPU
+        run: python3 tests/integration/releases.py
+      - name: Save archive test evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: archive-tests-${{ matrix.arch }}
+          path: test-results/releases/
+          retention-days: 7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-linux-${{ matrix.arch }}
+          path: release-dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7

@@ -30,10 +30,10 @@ jobs:
       run:
         working-directory: ${{ matrix.module }}
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.27.1'
           cache-dependency-path: '**/go.sum'
@@ -53,10 +53,10 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
           cache: npm
@@ -69,7 +69,7 @@ jobs:
       - run: npm run test:e2e
       - name: Save browser failure evidence
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: browser-failures
           path: |
@@ -87,7 +87,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Check shell syntax and lint
@@ -102,11 +102,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.27.1'
           cache: false
@@ -114,6 +114,8 @@ jobs:
         run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
       - run: python3 -m unittest discover -s scripts/tests
       - run: python3 scripts/check-privacy.py
+      - run: python3 scripts/check-commit-privacy.py
+      - run: shellcheck .githooks/pre-push
       - name: Scan history for secrets without exposing matches
         run: go run github.com/zricethezav/gitleaks/v8@v8.30.1 git --log-opts=HEAD --redact --no-banner .
 
@@ -122,20 +124,48 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Build production images
         run: |
           docker build --file Dockerfile.server --tag parallax-server:ci .
           docker build --build-arg "AGENT_VERSION=$GITHUB_SHA" --file Dockerfile.agent --tag parallax-agent:ci .
+      - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.74.0
+          cache: true
+      - name: Generate image software bills of materials
+        run: |
+          mkdir -p test-results/images
+          for component in server agent; do
+            trivy image --scanners vuln --format cyclonedx --output "test-results/images/$component.cdx.json" "parallax-$component:ci"
+          done
+      - name: Reject high and critical image vulnerabilities
+        run: |
+          result=0
+          for component in server agent; do
+            trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 1 --format json --output "test-results/images/$component.vulnerabilities.json" "parallax-$component:ci" || result=1
+          done
+          exit "$result"
+      - name: Save image inventories and vulnerability reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: image-security-reports
+          path: test-results/images/
+          retention-days: 14
       - run: python3 -m pip install -r tests/integration/requirements.txt
       - name: Verify UI, metrics access, nonroot agents and shell protocol
         run: python3 tests/integration/containers.py
       - name: Save integration failure evidence
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: container-failures
           path: test-results/integration/
           retention-days: 7
+
+  packages:
+    name: Release packages
+    uses: ./.github/workflows/packages.yml

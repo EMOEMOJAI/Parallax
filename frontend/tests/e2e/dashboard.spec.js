@@ -9,13 +9,11 @@ test('failed command is displayed as failed', async ({ context }) => {
   await p.getByRole('button', { name: 'Run', exact: true }).first().click()
   await p.evaluate(() => {
     const id = window.sent.find((x) => x.command).command.id
-    window.sockets
-      .at(-1)
-      .emit({
-        id,
-        type: 'error',
-        data: 'Command exited with error: exit status 1',
-      })
+    window.sockets.at(-1).emit({
+      id,
+      type: 'error',
+      data: 'Command exited with error: exit status 1',
+    })
     window.sockets
       .at(-1)
       .emit({ id, type: 'done', data: JSON.stringify({ exit_ok: false }) })
@@ -144,13 +142,11 @@ test('comparison allows long probes and cancels at the ten-minute limit', async 
   await dialog.getByRole('button', { name: 'Run All', exact: true }).click()
   await p.evaluate(() => {
     const id = window.sent.find((x) => x.command).command.id
-    window.sockets
-      .at(-1)
-      .emit({
-        id,
-        type: 'output',
-        data: '64 bytes from destination: seq=60 time=2ms',
-      })
+    window.sockets.at(-1).emit({
+      id,
+      type: 'output',
+      data: '64 bytes from destination: seq=60 time=2ms',
+    })
   })
   await p.clock.fastForward(66000)
   assert.equal(
@@ -382,7 +378,22 @@ for (const screen of [
       })
     else if (screen !== 'dashboard')
       await p.getByTitle(screen, { exact: true }).click()
-    await p.waitForTimeout(350)
+    if (screen === 'Network map') {
+      // Wait for the lazy module and its map CSS before scanning accessibility.
+      await p.locator('.leaflet-container').waitFor()
+    }
+    await p.evaluate(async () => {
+      await document.fonts.ready
+      await Promise.all(
+        document
+          .getAnimations()
+          .filter(
+            (animation) =>
+              animation.effect?.getTiming().iterations !== Infinity,
+          )
+          .map((animation) => animation.finished.catch(() => {})),
+      )
+    })
     const scan = await new AxeBuilder({ page: p })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
       .analyze()

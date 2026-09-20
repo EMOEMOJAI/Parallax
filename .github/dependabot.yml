@@ -16,6 +16,8 @@ updates:
     schedule:
       interval: weekly
     groups:
+      vite-toolchain:
+        patterns: ['vite', '@vitejs/plugin-react']
       frontend-patch-and-minor:
         patterns: ['*']
         update-types: [minor, patch]

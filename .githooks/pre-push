@@ -1,0 +1,5 @@
+#!/bin/sh
+# Parallax commit privacy hook; installed by scripts/install-hooks.py.
+set -eu
+common_dir=$(git rev-parse --git-common-dir)
+exec python3 "$common_dir/hooks/parallax/check-commit-privacy.py" --pre-push
