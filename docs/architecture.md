@@ -13,10 +13,11 @@ not be changed casually:
   the `/root/.ssh/looking-glass-deploy` key path and the `github.com-looking-glass` SSH alias.
   Changing these means reinstalling on the server and every agent node. The repo URL itself has
   already moved to `EMOEMOJAI/Parallax`; existing installs
-  need their clone's origin migrated and a read-only deploy key authorized for the new repo.
+  need their clone's origin migrated. Public HTTPS needs no key; private SSH
+  access needs a read-only deploy key authorized for the new repo.
   `update.sh` preserves the clone origin (or uses `REPO_URL`) and builds installed services.
-- `lookingglass_*` — the 20 Prometheus metric names in `backend/ops.go`. Renaming breaks any existing
-  Grafana dashboard.
+- `lookingglass_*` — the Prometheus metric names in `backend/ops.go`. Renaming breaks existing
+  Grafana dashboards.
 - `lg-client-key`, `lg-cmd-history`, `lg-kit` and `lookingGlass.presets` — browser localStorage keys.
   Renaming signs users out and discards their saved history and presets.
 - `lg.bearer` — the WebSocket auth subprotocol. Frontend and server must agree, so it can only change
@@ -28,9 +29,9 @@ Move any of these only as a deliberate migration, not as part of unrelated work.
 
 Three-tier network diagnostic tool. Each tier lives in its own top-level directory:
 
-- `backend/` — Go HTTP + WebSocket server, split across `main.go` (setup, routing, shared `Server` struct) and per-concern files: `agent_ws.go`, `client_ws.go`, `nodes.go`, `mesh.go`, `scheduler.go`, `runs.go`, `speedtest.go`, `geoip.go`, `rdap.go`, `public.go`, `alerts.go`, `ops.go`, `ratelimit.go`, `middleware.go`, `summary.go`, `util.go`. Also serves the built frontend.
-- `agent/` — Go binary deployed to remote nodes. `main.go` runs whitelisted network commands; `shell.go` runs PTY-backed interactive shells; `probes.go` and `summary.go` implement the native Go probes and their output summaries.
-- `frontend/` — React 19 + Vite 6 + Tailwind 4 SPA. Components in `src/components/`, hooks in `src/hooks/`.
+- `backend/` — Go HTTP + WebSocket server, split across `main.go` (setup, routing, shared `Server` struct) and per-concern files: `agent_ws.go`, `client_ws.go`, `nodes.go`, `mesh.go`, `scheduler.go`, `runs.go`, `speedtest.go`, `geoip.go`, `rdap.go`, `metadata_client.go`, `public.go`, `alerts.go`, `ops.go`, `ratelimit.go`, `middleware.go`, `summary.go`, `util.go`. Also serves the built frontend.
+- `agent/` — Go binary deployed to remote nodes. `main.go` and `commands.go` run whitelisted network commands; `shell.go` runs PTY-backed interactive shells; `probes.go` and `summary.go` implement the native Go probes and their output summaries.
+- `frontend/` — React 19 + Vite 8 + Tailwind 4 SPA. Exact versions live in `frontend/package.json`; components in `src/components/`, hooks in `src/hooks/`.
 - `deploy/` — Debian/Ubuntu install + update scripts (systemd-based; public HTTPS or optional SSH deploy key).
 
 ## Common commands
@@ -39,14 +40,14 @@ Local dev (three terminals):
 ```bash
 cd backend && go run .                 # server on :8080
 cd frontend && npm ci && npm run dev             # Vite dev server, proxies /api and /ws to :8080
-cd agent && go run . -server ws://localhost:8080/ws/agent -name "Local" -location "Local" -flag "🏠" -ipv4 "127.0.0.1" -provider "Localhost"
+cd agent && go run . -server ws://localhost:8080/ws/agent -name Local -auto-ip=false
 ```
 
-Build:
+Build from the repository root:
 ```bash
-cd frontend && npm run build           # → frontend/dist (consumed by server)
-cd backend  && CGO_ENABLED=0 go build -o parallax-server .
-cd agent    && CGO_ENABLED=0 go build -o parallax-agent .
+(cd frontend && npm ci && npm run build) # → frontend/dist (consumed by server)
+(cd backend && CGO_ENABLED=0 go build -o parallax-server .)
+(cd agent && CGO_ENABLED=0 go build -o parallax-agent .)
 ```
 
 Containers: `docker compose up --build` (server + one example agent).
@@ -65,7 +66,7 @@ Browser ──/ws/client──▶ Server ──/ws/agent──▶ Agent (one per
 - **The server holds persistent schedule state**. Nodes register themselves over `/ws/agent`; their UUID is assigned by the server and reused if an agent with the same `name` reconnects after its previous connection dies (duplicate names with a live conn are rejected).
 - **The server also serves the SPA**. It looks for `frontend/dist` in the CWD, falling back to `../frontend/dist`, so running `go run .` from `backend/` works for local dev.
 - **Commands flow**: client sends `{node_id, command:{id, type, target, options}}` → server routes to the right agent via `node.conn` → agent runs the command and streams `output`/`error`/`done` messages back → server forwards each to the originating client (tracked via `cmdOwners`/`cmdNodes` maps keyed by command id).
-- **Protocol message types have grown past `output`/`error`/`done`**: agent `register` and `health` messages now carry `version` and `tools` fields (S5) so the server knows an agent's build and which binaries it has; a **separate `summary` message** (S2) — its own `output.Type`, sent before `done`, not a field on it — carries a structured, tool-specific digest of the run; the native S7 probes (`tcp`, `tls`, `dnsbench`, `download`) stream through the same `output`/`error`/`done` envelope as the exec-based command types.
+- **Protocol message types have grown past `output`/`error`/`done`**: agent `register` and `health` messages now carry `version` and `tools` fields so the server knows an agent's build and which binaries it has; a **separate `summary` message** — its own `output.Type`, sent before `done`, not a field on it — carries a structured, tool-specific digest of the run; the native probes (`tcp`, `tls`, `dnsbench`, `download`) stream through the same `output`/`error`/`done` envelope as the exec-based command types.
 - **Shell startup** accepts optional `cols` and `rows` on `shell_start`. The server forwards them to the agent, which sizes the PTY before starting the process; absent or zero values retain the legacy 120×40 default. Shell output carries complete UTF-8 sequences in JSON strings, even when a PTY read splits a character.
 
 ### Concurrency model (read this before touching the server)
@@ -77,7 +78,7 @@ Browser ──/ws/client──▶ Server ──/ws/agent──▶ Agent (one per
 
 ### Security-sensitive invariants
 
-- Auth: `AGENT_API_KEY` (agent ↔ server), `CLIENT_API_KEY` (browser ↔ server). Both check `Authorization: Bearer <key>` first, fall back to `?key=` query. Both use `subtle.ConstantTimeCompare`. The server logs warnings at startup if either is unset.
+- Auth: `AGENT_API_KEY` (agent ↔ server), `CLIENT_API_KEY` (browser ↔ server). Both prefer `Authorization: Bearer <key>` and accept legacy `?key=` credentials. Browser WebSockets also accept `Sec-WebSocket-Protocol: lg.bearer, <key>` between header and query precedence; only `lg.bearer` is echoed. Key checks use `subtle.ConstantTimeCompare`. The server logs warnings at startup if either key is unset. See [authentication and public sessions](reference.md#authentication-and-public-sessions) for the open-mode boundary.
 - WebSocket origin: `ALLOWED_ORIGINS` (comma-separated). Permissive default with a startup warning — must be set in production.
 - All agent-supplied strings (registration fields, health info) go through `stripControlChars` → rune-truncate (`sanitizeString`, `backend/util.go`) before being stored. Don't bypass this when adding new agent-supplied fields. **Storage does not HTML-escape** — `sanitizeString` used to, which is why provider names rendered as `AT&amp;T`; escaping is now purely a render-layer concern, so **every output sink must protect itself**:
   - React escapes JSX text children, which is every node/hop/summary string the SPA renders. Keep them text children — never build markup from them.
@@ -101,7 +102,7 @@ Browser ──/ws/client──▶ Server ──/ws/agent──▶ Agent (one per
 
 - `deploy/install.sh` provisions a Debian/Ubuntu host, builds the frontend and server from a public HTTPS or optional SSH clone, and installs `looking-glass-server.service` (systemd). Env vars live in `/opt/looking-glass/.env`.
 - `deploy/agent-only-install.sh` does the same for an agent-only node.
-- `deploy/update.sh` pulls + rebuilds + restarts. Run after pushing changes.
+- `deploy/update.sh` fetches the configured branch, fast-forwards a clean clone, builds installed roles and restarts services that were running. Failed activation restores prior artifacts; see [update and rollback](deployment.md#update-and-rollback).
 - Installers default to `https://github.com/EMOEMOJAI/Parallax.git`; override `REPO_URL` for forks and optionally `DEPLOY_KEY` for private SSH access.
 
 ### Environment variables

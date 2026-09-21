@@ -53,8 +53,8 @@ npm run build
 npm run test:e2e
 ```
 
-The suite uses synthetic HTTP/WebSocket fixtures; 20 cases exercise the production
-bundle and two authentication cases use the Vite source server. Container tests
+The suite uses synthetic HTTP/WebSocket fixtures against the production bundle;
+authentication race cases also use the Vite source server. Container tests
 exercise the actual server and unprivileged agent, authentication, metrics access,
 PTY sizing, UTF-8 output and request ID reuse:
 
@@ -62,7 +62,7 @@ PTY sizing, UTF-8 output and request ID reuse:
 docker build -f Dockerfile.server -t parallax-server:ci .
 docker build -f Dockerfile.agent -t parallax-agent:ci .
 python3 -m venv /tmp/parallax-tests
-/tmp/parallax-tests/bin/pip install -r tests/integration/requirements.txt
+/tmp/parallax-tests/bin/pip install --require-hashes -r tests/integration/requirements.txt
 /tmp/parallax-tests/bin/python tests/integration/containers.py
 ```
 
