@@ -36,6 +36,17 @@ origins before exposing the service beyond a trusted network. Agent shell
 sessions remain enabled by default; use `-allow-shell=false` in the agent unit
 if they are not required.
 
+### Agent diagnostic tools
+
+The agent installer and example agent image include `ping`, `traceroute`,
+`mtr`, `iperf3`, `dig` (the `dns` command) and `curl` (the `http` command).
+`nexttrace` and the `speedtest` executable are optional and must be installed
+separately on the agent's `PATH`. Release archives contain the Parallax binaries,
+so archive users must provide these external tools themselves. Native `tcp`,
+`tls`, `dnsbench` and `download` probes need no external diagnostic binary.
+The dashboard reports detected tools; raw-socket probes also need the relevant
+OS permissions, supplied by the installer or example container configuration.
+
 ## Update and rollback
 
 ```sh
