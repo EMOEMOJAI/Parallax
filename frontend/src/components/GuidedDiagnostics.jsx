@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { RECIPES, validDiagnosticHost, explainRun, MAX_RUN_BYTES } from '../lib/investigations'
+import { RECIPES, validDiagnosticHost, explainRun, MAX_RUN_BYTES, RETENTION_DAYS } from '../lib/investigations'
 import { isToolAvailable, unavailableTitle } from '../lib/capabilities'
 import { commandSucceeded } from '../lib/commandResult'
 import { resultDocument } from '../lib/resultExport'
@@ -8,7 +8,7 @@ import { parseSummary } from './SummaryBadges'
 
 const control = 'min-w-0 max-w-full min-h-11 rounded-lg border border-border-hover bg-bg-secondary px-3 text-sm text-text-primary focus-visible:outline-2 focus-visible:outline-accent-text disabled:opacity-40'
 
-export default function GuidedDiagnostics({ nodes, ws, onCollect }) {
+export default function GuidedDiagnostics({ nodes, ws, onCollect, onSaveBaseline, days, onDaysChange }) {
   const [recipe, setRecipe] = useState('website')
   const [nodeId, setNodeId] = useState('')
   const [host, setHost] = useState('')
@@ -114,9 +114,16 @@ export default function GuidedDiagnostics({ nodes, ws, onCollect }) {
       <button className={control} disabled={running || !results.length} onClick={() => onCollect(results)}>Add guided results to incident</button>
     </div>
     <p role="status" className="text-sm text-text-muted">{progress}</p>
-    {results.map((run, index) => <details key={index} className="rounded-lg border border-border p-3">
-      <summary className="cursor-pointer text-sm break-words">{run.command} {run.target} — {explainRun(run)}</summary>
-      <pre className="mt-3 whitespace-pre-wrap break-all text-xs text-text-secondary">{run.lines.map((line) => line.text).join('\n')}</pre>
-    </details>)}
+    {results.length > 0 && <div className="space-y-2">
+      <label className="text-sm">Keep guided baselines for <select aria-label="Guided baseline retention" className={control} value={days} onChange={(e) => onDaysChange(e.target.value)}>{RETENTION_DAYS.map((day) => <option key={day} value={day}>{day} {day === 1 ? 'day' : 'days'}</option>)}</select></label>
+      <p className="text-xs text-text-muted">Saving includes node details and raw output in this browser, including after sign out, until deleted or expired.</p>
+    </div>}
+    {results.map((run, index) => <div key={index} className="rounded-lg border border-border p-3 space-y-2">
+      <details>
+        <summary className="cursor-pointer text-sm break-words">{run.command} {run.target} — {explainRun(run)}</summary>
+        <pre className="mt-3 whitespace-pre-wrap break-all text-xs text-text-secondary">{run.lines.map((line) => line.text).join('\n')}</pre>
+      </details>
+      <button className={control} aria-label={`Save baseline for check ${index + 1}: ${run.command}`} onClick={() => onSaveBaseline(run, days)}>Save baseline</button>
+    </div>)}
   </section>
 }

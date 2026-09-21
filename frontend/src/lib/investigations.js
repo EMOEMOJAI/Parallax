@@ -105,15 +105,36 @@ export function explainRun(run) {
   if (summaryNumber(s.answer_count) === 0) return 'No answers for this record type. A missing IPv6 answer alone does not mean the site is unavailable.'
   const code = summaryNumber(s.http_code)
   if (code !== null) return code >= 200 && code < 400 ? `The server returned HTTP ${code} from this node.` : `The server returned HTTP ${code}. Review the response and application configuration.`
+  if (run.command === 'dns' && s.status === 'NOERROR') {
+    const answers = summaryNumber(s.answer_count), elapsed = summaryNumber(s.query_time_ms)
+    if (answers !== null && Number.isInteger(answers) && answers > 0) return `DNS returned ${answers} ${answers === 1 ? 'answer' : 'answers'}${elapsed !== null && elapsed >= 0 ? ` in ${elapsed} ms` : ''} (NOERROR).`
+  }
+  const connect = summaryNumber(s.connect_ms)
+  if (run.command === 'tcp' && connect !== null && connect >= 0) return `TCP connected in ${connect} ms.`
+  if (run.command === 'tls' && s.chain_ok === true) return `The TLS certificate chain is trusted${days !== null && days > 0 ? `; ${days} ${days === 1 ? 'day' : 'days'} until expiry` : ''}.`
   return 'The command completed. Review the output for details; completion alone does not prove the service is healthy.'
 }
 
-export function incidentText(runs, title, notes, createdAt = new Date().toISOString()) {
+function reportRun(run, heading) {
+  return [`\n--- ${heading} ---`, `Node: ${run.node.name} (${run.node.location})`,
+    `Started: ${run.started_at || 'unknown'}`, `Shared: ${run.shared_at || 'not a shared replay'}`,
+    `Command: ${run.command} ${run.target}`, `Options: ${run.options || '(default)'}`,
+    `Observation: ${explainRun(run)}`, `Summary: ${JSON.stringify(run.summary)}`, '\nOutput:', ...run.lines.map((line) => line.text)].join('\n')
+}
+
+export function incidentText(runs, title, notes, createdAt = new Date().toISOString(), baselineComparison = null) {
+  const before = baselineComparison?.before, after = baselineComparison?.after
+  const comparison = before && after ? compareRuns(before, after) : null
+  const comparisonLines = comparison ? ['\n--- Baseline comparison ---',
+    'Baseline → selected result. Differences are observations, not proof of degradation.',
+    ...comparison.metrics.map((metric) => `${metric.label}: ${metric.before} → ${metric.after} ${metric.unit} (change: ${metric.delta > 0 ? '+' : ''}${metric.delta} ${metric.unit})`),
+    ...(comparison.parsed ? [`${comparison.kind} (recognized records only):`,
+      ...comparison.removed.map((value) => `Removed: ${value}`), ...comparison.added.map((value) => `Added: ${value}`),
+      ...(!comparison.removed.length && !comparison.added.length ? ['No changes in recognized records.'] : [])] : []),
+    ...(!comparison.parsed && !comparison.metrics.length ? ['No comparable structured data. Compare the raw output below.'] : []),
+    reportRun(before, 'Baseline run'), reportRun(after, 'Compared run')] : []
   return [`Parallax incident report`, title.trim() || 'Network investigation', `Exported: ${createdAt}`, notes.trim(),
-    ...runs.map((run, index) => [`\n--- Check ${index + 1} ---`, `Node: ${run.node.name} (${run.node.location})`,
-      `Started: ${run.started_at || 'unknown'}`, `Shared: ${run.shared_at || 'not a shared replay'}`,
-      `Command: ${run.command} ${run.target}`, `Options: ${run.options || '(default)'}`,
-      `Observation: ${explainRun(run)}`, `Summary: ${JSON.stringify(run.summary)}`, '\nOutput:', ...run.lines.map((line) => line.text)].join('\n'))].join('\n') + '\n'
+    ...runs.map((run, index) => reportRun(run, `Check ${index + 1}`)), ...comparisonLines].join('\n') + '\n'
 }
 
 export function redactText(text, terms) {

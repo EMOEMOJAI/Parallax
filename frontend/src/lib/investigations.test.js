@@ -76,3 +76,37 @@ test('kit baseline matching requires identical recorded sequences', () => {
   assert.equal(compatibleRuns(a, { ...a }), true)
   assert.equal(compatibleRuns(run('kit'), run('kit')), false)
 })
+
+test('successful guided observations show measurements without masking failures or inventing missing values', () => {
+  assert.equal(explainRun(run('dns', [], { status: 'NOERROR', answer_count: 2, query_time_ms: 0 })), 'DNS returned 2 answers in 0 ms (NOERROR).')
+  assert.equal(explainRun(run('dns', [], { status: 'NOERROR', answer_count: 1 })), 'DNS returned 1 answer (NOERROR).')
+  assert.equal(explainRun(run('tcp', [], { connect_ms: 3.174 })), 'TCP connected in 3.174 ms.')
+  assert.equal(explainRun(run('tls', [], { chain_ok: true, days_remaining: 36 })), 'The TLS certificate chain is trusted; 36 days until expiry.')
+  assert.equal(explainRun(run('tls', [], { chain_ok: true })), 'The TLS certificate chain is trusted.')
+  for (const value of [null, false, [], {}, '', -1]) assert.doesNotMatch(explainRun(run('tcp', [], { connect_ms: value })), /TCP connected/)
+  assert.match(explainRun(run('dns', [], { status: 'NXDOMAIN', answer_count: 0 })), /NXDOMAIN/)
+  assert.match(explainRun(run('tls', [], { chain_ok: true, days_remaining: 0 })), /expired/)
+  assert.match(explainRun(run('tls', [], { chain_ok: false, days_remaining: 36 })), /not trusted/)
+  for (const [command, summary] of [['dns', { status: 'NOERROR', answer_count: 2 }], ['tcp', { connect_ms: 3 }], ['tls', { chain_ok: true }]]) {
+    assert.match(explainRun({ ...run(command, [], summary), lines: [{ type: 'error', text: 'Interrupted' }] }), /failed or was interrupted/)
+  }
+})
+
+test('incident comparisons include signed deltas and both evidence snapshots, with global redaction', () => {
+  const before = run('tcp', ['baseline-private-output'], { connect_ms: 3.174 })
+  const after = { ...run('tcp', ['current-private-output'], { connect_ms: 2.874 }), started_at: '2026-01-02T00:00:00Z' }
+  const text = incidentText([], 'Comparison only', '', '2026-01-03T00:00:00Z', { before, after })
+  assert.match(text, /Connect time: 3.174 → 2.874 ms \(change: -0.3 ms\)/)
+  for (const item of ['Baseline run', 'Compared run', before.started_at, after.started_at, 'baseline-private-output', 'current-private-output']) assert.ok(text.includes(item))
+  const redacted = redactText(text, 'Node A\nSite 1\nexample.com\nbaseline-private-output\ncurrent-private-output')
+  for (const item of ['Node A', 'Site 1', 'example.com', 'baseline-private-output', 'current-private-output']) assert.ok(!redacted.includes(item))
+  assert.doesNotMatch(incidentText([], '', '', undefined, { before, after: { ...after, target: 'other.example' } }), /Baseline comparison/)
+  const unknown = incidentText([], '', '', undefined, { before: run(), after: run() })
+  assert.match(unknown, /No comparable structured data/)
+  const dns = incidentText([], '', '', undefined, {
+    before: run('dns', [';; ANSWER SECTION:', 'example.com. 60 IN A 192.0.2.1']),
+    after: run('dns', [';; ANSWER SECTION:', 'example.com. 30 IN A 192.0.2.2']),
+  })
+  assert.match(dns, /Removed: example.com. IN A 192.0.2.1/)
+  assert.match(dns, /Added: example.com. IN A 192.0.2.2/)
+})

@@ -15,16 +15,18 @@ export default function Investigations({ current, library, nodes, ws }) {
   const [notes, setNotes] = useState('')
   const [preview, setPreview] = useState(null)
   const [terms, setTerms] = useState('')
+  const [includeComparison, setIncludeComparison] = useState(false)
   const candidate = candidateId === 'current' ? current : library.drafts.find((entry) => entry.id === candidateId)?.run
   const baseline = library.baselines.find((entry) => entry.id === baselineId && entry.expiresAt > Date.now())
   const comparison = baseline && candidate ? compareRuns(baseline.run, candidate) : null
+  const reportComparison = includeComparison && comparison ? { before: baseline.run, after: candidate } : null
   const selected = library.drafts.filter((entry) => !excluded.includes(entry.id))
   const redacted = preview === null ? '' : redactText(preview, terms)
 
   return <details className="mt-4 rounded-2xl border border-border/50 bg-bg-secondary/20" data-testid="investigations">
     <summary className="min-h-11 p-4 cursor-pointer font-semibold text-text-primary">Investigations <span className="font-normal text-sm text-text-muted">· Baselines, guided checks & reports</span></summary>
     <div className="p-4 pt-0 space-y-6">
-      <GuidedDiagnostics nodes={nodes} ws={ws} onCollect={library.addDrafts} />
+      <GuidedDiagnostics nodes={nodes} ws={ws} onCollect={library.addDrafts} onSaveBaseline={library.saveBaseline} days={days} onDaysChange={setDays} />
       <section aria-labelledby="baseline-title" className="space-y-3 border-t border-border pt-4">
         <h3 id="baseline-title" className="font-semibold">Compare with a baseline</h3>
         <p className="text-sm text-text-muted">Save only results you choose. Baselines include node details and raw output, stay in this browser after sign out, and are removed on the next visit or within a minute while this dashboard is open after expiry. Up to 10 baselines / 2 MiB.</p>
@@ -53,6 +55,8 @@ export default function Investigations({ current, library, nodes, ws }) {
         {baseline && candidate && !compatibleRuns(baseline.run, candidate) && <p role="status" className="text-sm text-warning">Choose results with the same node name, location, command, target and options. Kit comparisons also require a recorded step sequence.</p>}
         {comparison && <div className="space-y-2 text-sm" aria-label="Baseline comparison">
           <p className="text-text-muted">Baseline → selected result. Differences are observations, not proof of degradation.</p>
+          <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={includeComparison} onChange={(e) => setIncludeComparison(e.target.checked)} /> Include this comparison in incident report</label>
+          <p className="text-xs text-text-muted">Includes the changes and both runs’ metadata, timestamps and raw output. Review and redact before downloading.</p>
           {comparison.metrics.length > 0 && <div className="overflow-x-auto"><table className="w-full text-left"><caption className="sr-only">Metric changes</caption><thead><tr><th>Metric</th><th>Before</th><th>After</th><th>Change</th></tr></thead><tbody>
             {comparison.metrics.map((metric) => <tr key={metric.label}><th className="py-2 font-normal">{metric.label}</th><td>{metric.before}</td><td>{metric.after}</td><td>{metric.delta > 0 ? '+' : ''}{metric.delta} {metric.unit}</td></tr>)}
           </tbody></table></div>}
@@ -73,10 +77,11 @@ export default function Investigations({ current, library, nodes, ws }) {
           <label className="text-sm min-w-0 flex-1 break-words"><input type="checkbox" checked={!excluded.includes(entry.id)} onChange={(e) => setExcluded((previous) => e.target.checked ? previous.filter((id) => id !== entry.id) : [...previous, entry.id])} /> {index + 1}. {label(entry.run)}</label>
           <button className={control} aria-label={`Remove check ${index + 1}`} onClick={() => library.removeDraft(entry.id)}>Remove</button>
         </div>)}
-        <button className={control} disabled={!library.drafts.length && preview === null} onClick={() => { library.clearDrafts(); setPreview(null); setTerms(''); setTitle(''); setNotes(''); setExcluded([]) }}>Clear incident draft</button>
+        <button className={control} disabled={!library.drafts.length && preview === null && !includeComparison} onClick={() => { library.clearDrafts(); setPreview(null); setTerms(''); setTitle(''); setNotes(''); setExcluded([]); setIncludeComparison(false) }}>Clear incident draft</button>
         <label className="block text-sm">Report title<input className={`${control} block mt-1 w-full`} maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} /></label>
         <label className="block text-sm">Notes<textarea className={`${control} block mt-1 w-full py-2`} maxLength={4000} value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
-        <button className={control} disabled={!selected.length} onClick={() => { setPreview(incidentText(selected.map((entry) => entry.run), title, notes)); setTerms('') }}>Preview incident report</button>
+        {reportComparison && <p className="text-sm">The selected baseline comparison will be included in the next preview.</p>}
+        <button className={control} disabled={!selected.length && !reportComparison} onClick={() => { setPreview(incidentText(selected.map((entry) => entry.run), title, notes, undefined, reportComparison)); setTerms('') }}>Preview incident report</button>
         {preview !== null && <div className="space-y-3">
           <p className="text-sm text-text-muted">This preview is a frozen snapshot. Preview again to include draft changes. Redaction replaces exact, case-sensitive text everywhere; it does not detect secrets automatically.</p>
           <label className="block text-sm">Redact exact text (one value per line)<textarea aria-label="Redact incident text" className={`${control} block w-full py-2 mt-1`} maxLength={4000} value={terms} onChange={(e) => setTerms(e.target.value)} /></label>
