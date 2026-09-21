@@ -1,6 +1,8 @@
 import importlib.util
 from pathlib import Path
 import unittest
+import subprocess
+import tempfile
 
 spec = importlib.util.spec_from_file_location('privacy', Path(__file__).resolve().parents[1] / 'check-privacy.py')
 privacy = importlib.util.module_from_spec(spec)
@@ -25,6 +27,38 @@ class PrivacyGuardTests(unittest.TestCase):
             self.assertTrue(privacy.inspect(path, ''))
         self.assertTrue(privacy.inspect('docs/setup.md', 'node' + '.local'))
         self.assertEqual(privacy.inspect('.env.example', ''), [])
+
+
+class IndexPrivacyTests(unittest.TestCase):
+    def test_staged_private_content_survives_worktree_redaction_or_deletion(self):
+        checker = Path(privacy.__file__).resolve()
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            subprocess.run(['git', 'init', '-q', temp], check=True)
+            file = root / 'README.md'
+            secret = 'person' + '@mail.testdomain.org'
+            file.write_text(secret)
+            subprocess.run(['git', 'add', 'README.md'], cwd=root, check=True)
+            for deleted in [False, True]:
+                if deleted:
+                    file.unlink()
+                else:
+                    file.write_text('safe example')
+                result = subprocess.run(['python3', str(checker)], cwd=root, capture_output=True, text=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn(secret, result.stdout + result.stderr)
+                self.assertIn('non-example email', result.stdout)
+
+    def test_broken_symlink_is_not_skipped(self):
+        checker = Path(privacy.__file__).resolve()
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            subprocess.run(['git', 'init', '-q', temp], check=True)
+            (root / 'link').symlink_to('missing-target')
+            subprocess.run(['git', 'add', 'link'], cwd=root, check=True)
+            result = subprocess.run(['python3', str(checker)], cwd=root, capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('symlink', result.stdout)
 
 
 if __name__ == '__main__':

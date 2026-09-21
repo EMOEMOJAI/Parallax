@@ -74,7 +74,7 @@ findings fail the container job. CycloneDX software bills of materials and JSON
 scan reports are retained as GitHub artifacts for 14 days. Scan failures are not
 silently ignored; investigate and update affected packages before merging.
 
-Run `python3 scripts/check-privacy.py` before committing. It checks tracked files
+Run `python3 scripts/check-privacy.py` before committing. It checks both staged blobs and tracked working files
 for credential filenames, private key material, personal home paths, non-example
 email addresses and private deployment addresses/domains. It complements secret
 scanning and manual review; it cannot detect every personal detail. Network policy

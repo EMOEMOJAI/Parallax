@@ -196,3 +196,18 @@ func TestReauditShellStartForwardsOptionalDimensions(t *testing.T) {
 		})
 	}
 }
+
+func TestCommandLogOmitsSensitiveTarget(t *testing.T) {
+	_, ts := newPublicTestServer(t, nil)
+	conn, _, err := dialClientWS(ts, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	text := captureLog(t, func() {
+		runCommandExpectingError(t, conn, "missing-node", "http", "https://example.com/private-token-path?key=synthetic-secret")
+	})
+	if strings.Contains(text, "synthetic-secret") || strings.Contains(text, "private-token-path") || !strings.Contains(text, "Command: http") {
+		t.Fatal("command logs must preserve identity without target credentials")
+	}
+}

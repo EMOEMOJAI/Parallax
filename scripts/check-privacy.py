@@ -52,23 +52,34 @@ def inspect(path, data):
 
 
 def main():
-    paths = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\0')
+    entries = subprocess.check_output(['git', 'ls-files', '--stage', '-z']).decode().split('\0')
     failed = False
-    for path in filter(None, paths):
-        file = pathlib.Path(path)
-        if not file.exists():
-            continue
-        if file.is_symlink():
-            print(f'{path}: symlink requires manual privacy review')
+    for entry in filter(None, entries):
+        metadata, path = entry.split('\t', 1)
+        mode, oid, stage = metadata.split()
+        if stage != '0':
+            print(f'{path}: resolve index conflicts before privacy review')
             failed = True
             continue
-        data = file.read_bytes().decode('utf-8', errors='replace')
-        for finding in inspect(path, data):
+        file = pathlib.Path(path)
+        # Read the index by blob ID: a later working-tree edit or deletion must
+        # not hide content that git commit would actually publish.
+        staged = subprocess.check_output(['git', 'cat-file', 'blob', oid]).decode('utf-8', errors='replace') if mode != '160000' else ''
+        if mode in {'120000', '160000'} or file.is_symlink():
+            print(f'{path}: symlink or submodule requires manual privacy review')
+            failed = True
+        versions = [staged]
+        if file.is_file() and not file.is_symlink():
+            versions.append(file.read_bytes().decode('utf-8', errors='replace'))
+        findings = set()
+        for data in versions:
+            findings.update(inspect(path, data))
+        for finding in sorted(findings):
             print(f'{path}: {finding}')
             failed = True
     if failed:
         return 1
-    print('Tracked-file privacy guard passed.')
+    print('Index and working-tree privacy guard passed.')
     return 0
 
 
