@@ -109,4 +109,8 @@ test('incident comparisons include signed deltas and both evidence snapshots, wi
   })
   assert.match(dns, /Removed: example.com. IN A 192.0.2.1/)
   assert.match(dns, /Added: example.com. IN A 192.0.2.2/)
+  const loss = incidentText([], '', '', undefined, {
+    before: run('ping', [], { loss_pct: 25 }), after: run('ping', [], { loss_pct: 50 }),
+  })
+  assert.match(loss, /Packet loss: 25 → 50 % \(change: \+25 percentage points\)/)
 })

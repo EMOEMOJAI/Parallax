@@ -127,7 +127,7 @@ export function incidentText(runs, title, notes, createdAt = new Date().toISOStr
   const comparison = before && after ? compareRuns(before, after) : null
   const comparisonLines = comparison ? ['\n--- Baseline comparison ---',
     'Baseline → selected result. Differences are observations, not proof of degradation.',
-    ...comparison.metrics.map((metric) => `${metric.label}: ${metric.before} → ${metric.after} ${metric.unit} (change: ${metric.delta > 0 ? '+' : ''}${metric.delta} ${metric.unit})`),
+    ...comparison.metrics.map((metric) => `${metric.label}: ${metric.before} → ${metric.after} ${metric.unit === 'percentage points' ? '%' : metric.unit} (change: ${metric.delta > 0 ? '+' : ''}${metric.delta} ${metric.unit})`),
     ...(comparison.parsed ? [`${comparison.kind} (recognized records only):`,
       ...comparison.removed.map((value) => `Removed: ${value}`), ...comparison.added.map((value) => `Added: ${value}`),
       ...(!comparison.removed.length && !comparison.added.length ? ['No changes in recognized records.'] : [])] : []),

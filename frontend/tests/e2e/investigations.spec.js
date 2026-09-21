@@ -250,7 +250,7 @@ test('comparison-only report freezes both runs, redacts them and downloads exact
   const field = page.getByLabel('Incident report preview', { exact: true })
   const frozen = await field.inputValue()
   expect(frozen).toContain('Average latency: 10 → 20 ms (change: +10 ms)')
-  expect(frozen).toContain('Packet loss: 0 → 25 percentage points (change: +25 percentage points)')
+  expect(frozen).toContain('Packet loss: 0 → 25 % (change: +25 percentage points)')
   expect(frozen).toContain('--- Baseline run ---')
   expect(frozen).toContain('--- Compared run ---')
   await runPing(page, { avg_ms: 99, loss_pct: 50 })
