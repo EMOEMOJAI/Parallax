@@ -381,7 +381,7 @@ func NewServer() *Server {
 		startTime:       time.Now(),
 		buildInfo:       readVersionInfo(),
 		agentAPIKey:     os.Getenv("AGENT_API_KEY"),
-		geoClient:       &http.Client{Timeout: 10 * time.Second},
+		geoClient:       newMetadataClient(),
 		alerts:          newAlertManager(),
 	}
 	s.upgrader = websocket.Upgrader{

@@ -78,7 +78,7 @@ func (s *Server) handleRDAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 	defer cancel()
 	url := fmt.Sprintf("%s/%s/%s", rdapBootstrap, kind, query)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)

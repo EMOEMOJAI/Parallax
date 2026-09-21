@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -43,6 +44,9 @@ func (s *Server) handleGeoIP(w http.ResponseWriter, r *http.Request) {
 		}
 		results := make([]json.RawMessage, 0, len(req.IPs))
 		for _, ip := range req.IPs {
+			if r.Context().Err() != nil {
+				return
+			}
 			ip = strings.TrimSpace(ip)
 			if ip == "" || ip == "*" {
 				continue
@@ -62,7 +66,7 @@ func (s *Server) handleGeoIP(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 			}
-			data, err := s.lookupGeoIP(ip)
+			data, err := s.lookupGeoIP(r.Context(), ip)
 			if err != nil {
 				continue
 			}
@@ -97,7 +101,7 @@ func (s *Server) handleGeoIP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	data, err := s.lookupGeoIP(ip)
+	data, err := s.lookupGeoIP(r.Context(), ip)
 	if err != nil {
 		log.Printf("GeoIP lookup failed for %s: %v", ip, err)
 		writeJSONError(w, "GeoIP lookup failed", 502)
@@ -106,7 +110,7 @@ func (s *Server) handleGeoIP(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
-func (s *Server) lookupGeoIP(ip string) ([]byte, error) {
+func (s *Server) lookupGeoIP(ctx context.Context, ip string) ([]byte, error) {
 	s.geoLookupsTotal.Add(1)
 	// Check cache (with TTL). On hit, promote to MRU position.
 	s.geoCacheMu.Lock()
@@ -125,7 +129,11 @@ func (s *Server) lookupGeoIP(ip string) ([]byte, error) {
 	}
 	s.geoCacheMu.Unlock()
 
-	resp, err := s.geoClient.Get(fmt.Sprintf("http://ip-api.com/json/%s?fields=status,message,country,countryCode,region,city,lat,lon,isp,org,as,query", ip))
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("http://ip-api.com/json/%s?fields=status,message,country,countryCode,region,city,lat,lon,isp,org,as,query", ip), nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := s.geoClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

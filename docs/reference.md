@@ -125,3 +125,13 @@ Schedule results feed:
 | `/ws/agent` | `AGENT_API_KEY` |
 | `/ws/client` | client auth required **unless the session is public**, via the `lg.bearer` subprotocol or `?key=` |
 | `/ws/speedtest` | client auth required; refused for public sessions |
+
+### Metadata lookup transport
+
+GeoIP and RDAP lookups connect directly to public provider addresses; environment
+HTTP proxies are not used for these requests. Private, local and special-use
+addresses are rejected after DNS resolution and on redirect connections. Redirects
+require HTTPS and are limited to five hops. TLS certificate verification remains
+enabled. Lookups stop when the requesting client disconnects. The free GeoIP
+provider uses HTTP for its initial request, so its location data is advisory and
+not a trusted identity or authorization input.
