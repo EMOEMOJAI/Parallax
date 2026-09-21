@@ -1,3 +1,6 @@
+import Investigations from './components/Investigations'
+import { useInvestigations } from './hooks/useInvestigations'
+import { resultDocument } from './lib/resultExport'
 import { commandSucceeded } from './lib/commandResult'
 import { randomId } from './lib/id'
 import { useState, useCallback, useEffect, useRef, useMemo, lazy, Suspense } from 'react'
@@ -58,6 +61,7 @@ function Dashboard({ onSignOut }) {
   const [selectedNodeId, setSelectedNodeId] = useState(() => {
     try { return localStorage.getItem('lg-selected-node') || null } catch { return null }
   })
+  const investigations = useInvestigations()
   const [lines, setLines] = useState([])
   // Structured summary of the run currently in the terminal (S2). Replaced on
   // every dispatch — including each step of a diagnostic kit — so it always
@@ -531,10 +535,12 @@ function Dashboard({ onSignOut }) {
               lines={lines}
               summary={summary}
               nodeName={runMeta ? (runMeta.nodeName || 'Unknown node') : selectedNode?.name}
-              onClear={() => { dismissReplay(); setLines([]); setSummary(null) }}
+              onClear={() => { dismissReplay(); setLines([]); setSummary(null); setRunMeta(null) }}
               runMeta={runMeta}
               canShare={!isPublic}
             />}
+            {!isPublic && <Investigations library={investigations} nodes={nodes} ws={ws}
+              current={!running && runMeta && lines.length ? resultDocument(runMeta, lines, runMeta.command === 'kit' ? null : summary) : null} />}
           </div>
           <div className="w-full lg:w-72 shrink-0 space-y-3">
             <NodeInfo node={selectedNode} />
@@ -562,7 +568,7 @@ function Dashboard({ onSignOut }) {
       <ErrorBoundary resetKey={activeModal} fallback={<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 text-danger text-sm"><button onClick={() => setActiveModal(null)}>Component error. Close panel.</button></div>}>
         <NodeHealthOverview visible={activeModal === 'health'} onClose={() => setActiveModal(null)} />
         <LatencyMatrix canMeasure={!isPublic} visible={activeModal === 'matrix'} onClose={() => setActiveModal(null)} wsRef={ws} />
-        <MultiNodeCompare allowedCommands={isPublic ? publicConfig.allowed_commands : null} allowedTargets={isPublic ? publicConfig.allowed_targets : null} visible={activeModal === 'compare'} onClose={() => setActiveModal(null)} nodes={nodes} wsRef={ws} />
+        <MultiNodeCompare onCollect={isPublic ? null : investigations.addDrafts} allowedCommands={isPublic ? publicConfig.allowed_commands : null} allowedTargets={isPublic ? publicConfig.allowed_targets : null} visible={activeModal === 'compare'} onClose={() => setActiveModal(null)} nodes={nodes} wsRef={ws} />
         <Schedules visible={activeModal === 'schedules'} onClose={() => setActiveModal(null)} nodes={nodes} />
         {/* Lazy-loaded modals: render the chunk only on first open so the
             initial bundle stays small. Suspense fallback is invisible — these

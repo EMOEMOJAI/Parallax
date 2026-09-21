@@ -1,5 +1,5 @@
 import { commandSucceeded } from '../lib/commandResult'
-import { comparisonCsv, downloadFile } from '../lib/resultExport'
+import { comparisonCsv, downloadFile, resultDocument } from '../lib/resultExport'
 import { randomId } from '../lib/id'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Columns3, Play, Square, Globe, X } from 'lucide-react'
@@ -30,7 +30,7 @@ const MAX_LINES_PER_NODE = 2000
 // 100-packet pings and long traces must not be cancelled after just a minute.
 const NODE_TIMEOUT_MS = 10 * 60_000 + 15_000
 
-export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allowedCommands = null, allowedTargets = null }) {
+export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allowedCommands = null, allowedTargets = null, onCollect }) {
   const [selectedNodes, setSelectedNodes] = useState([])
   const [command, setCommand] = useState('ping')
   const visibleCommands = allowedCommands === null ? COMMANDS : COMMANDS.filter((c) => allowedCommands.includes(c.id))
@@ -56,6 +56,7 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
     })
   }, [nodes, running])
   const [runMeta, setRunMeta] = useState(null)
+  const completedResults = useRef({})
   const [results, setResults] = useState({}) // nodeId -> lines[]
   const [summaries, setSummaries] = useState({}) // nodeId -> parsed summary
   const cmdIds = useRef({})
@@ -184,6 +185,7 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
         if (parsed) setSummaries((prev) => ({ ...prev, [nodeId]: parsed }))
       }
       if (data.type === 'done') {
+        completedResults.current[nodeId] = succeeded
         commandErrors.current.delete(data.id)
         const cmdId = cmdIds.current[nodeId]
         delete cmdIds.current[nodeId]
@@ -200,6 +202,7 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
     if (running) return
     setRunning(true)
     commandErrors.current.clear()
+    completedResults.current = {}
     cmdIds.current = {}
     cmdToNode.current = {}
     cmdStartTimes.current = {}
@@ -328,6 +331,15 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
             <Columns3 size={16} className="text-accent-text" />
             <span className="text-sm font-semibold text-text-primary">Multi-Node Comparison</span>
           </div>
+          {runMeta && onCollect && <button disabled={running || flushScheduled.current} onClick={() => onCollect(runMeta.nodes.map((node) => resultDocument({
+            command: runMeta.command, target: runMeta.target, options: runMeta.options, startedAt: runMeta.startedAt,
+            nodeName: node.name, nodeLocation: node.location,
+          }, [...(results[node.id] || []), {
+            type: completedResults.current[node.id] === true ? 'success' : 'error',
+            text: completedResults.current[node.id] === undefined ? 'Result incomplete: this comparison was stopped or disconnected before completion.'
+              : completedResults.current[node.id] ? 'Comparison check completed.' : 'Comparison check failed.',
+          }], summaries[node.id] || null)))}
+            className="min-h-11 rounded-lg border border-border-hover px-3 text-xs text-text-primary disabled:opacity-40">Add comparison to incident</button>}
           {runMeta && <button disabled={running || flushScheduled.current} onClick={() => downloadFile(comparisonCsv(runMeta, results, summaries), 'text/csv;charset=utf-8', 'parallax-comparison.csv')}
             className="ml-auto mr-2 min-h-11 rounded-lg px-3 text-xs text-text-muted hover:text-text-primary disabled:opacity-40 cursor-pointer">Download CSV</button>}
           <button onClick={handleClose}

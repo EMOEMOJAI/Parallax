@@ -259,7 +259,7 @@ test('stale health snapshot cannot overwrite a newer refresh', async ({
     contentType: 'application/json',
     body: JSON.stringify([{ ...nodes[0], name: 'NEW HEALTH' }]),
   })
-  await p.getByText('NEW HEALTH', { exact: true }).waitFor()
+  await p.getByTestId('node-health-card').getByText('NEW HEALTH', { exact: true }).waitFor()
   await pending[0].fulfill({
     status: 200,
     contentType: 'application/json',
@@ -267,7 +267,7 @@ test('stale health snapshot cannot overwrite a newer refresh', async ({
   })
   await p.waitForTimeout(100)
   assert.equal(await p.getByText('OLD HEALTH', { exact: true }).count(), 0)
-  await p.getByText('NEW HEALTH', { exact: true }).waitFor()
+  await p.getByTestId('node-health-card').getByText('NEW HEALTH', { exact: true }).waitFor()
 })
 
 test('matrix reopen rejects the previous open snapshot', async ({

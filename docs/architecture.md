@@ -93,9 +93,10 @@ Browser ──/ws/client──▶ Server ──/ws/agent──▶ Agent (one per
 
 ### Frontend wiring
 
-- Single WebSocket per browser tab via the `useWebSocket('/ws/client')` hook, fanned out by `subscribe(channelName, handler)`. Each major component (`App`, `LatencyMatrix`, `MultiNodeCompare`, `ShellTerminal`) registers its own channel; don't open extra sockets.
+- Single WebSocket per browser tab via the `useWebSocket('/ws/client')` hook, fanned out by `subscribe(channelName, handler)`. Each major component (`App`, `LatencyMatrix`, `MultiNodeCompare`, `GuidedDiagnostics`, `ShellTerminal`) registers its own channel; don't open extra sockets.
 - Vite proxies `/api` and `/ws` to `http://localhost:8080` in dev (see `vite.config.js`).
 - Modal state in `App.jsx` is a single string (`'health' | 'matrix' | 'compare' | 'map' | 'shell' | 'schedules' | null`), not six booleans — keep it that way.
+- Investigations use the same client socket with independently owned request IDs. Guided sequences retire each ID before advancing, and cancel on unmount, disconnect, timeout or explicit Stop. Incident drafts are bounded in memory; only explicitly saved baselines persist in browser storage, with expiry and deletion controls. See the reference for retention and export limits.
 - Output buffer is hard-capped at 10000 lines (`MAX_OUTPUT_LINES`) to prevent unbounded memory growth on long-running commands.
 
 ## Deployment notes

@@ -194,3 +194,53 @@ require HTTPS and are limited to five hops. TLS certificate verification remains
 enabled. Lookups stop when the requesting client disconnects. The free GeoIP
 provider uses HTTP for its initial request, so its location data is advisory and
 not a trusted identity or authorization input.
+
+### Investigations, baselines and incident reports
+
+Open **Investigations** below the terminal to run guided checks, save a baseline,
+or assemble an incident report. This workspace is available to operator sessions;
+public sessions continue to use their configured command and target allowlists.
+
+- **Guided diagnostics:** “Website unreachable” checks DNS A records, TCP port
+  443, the TLS certificate and an HTTPS response. “DNS looks wrong” checks A and
+  AAAA records and runs the resolver benchmark. Enter a hostname without a URL,
+  port or path and choose an online node. Known missing capabilities disable the
+  sequence; older agents with unknown capabilities retain compatibility behavior.
+  Checks run sequentially through the existing authenticated WebSocket. A failed
+  probe does not stop later checks; Stop, disconnect, timeout or the output cap
+  stops the remaining sequence. Closing the Investigations disclosure keeps an
+  active sequence running; use **Stop guided checks** to cancel it. Observations
+  describe evidence, not a definitive root cause. Completed and interrupted
+  check output can be explicitly collected into an incident draft.
+- **Baselines:** save the current terminal result or a collected check for 1, 7
+  or 30 days. These opt-in snapshots include node names, locations, targets,
+  options, summaries and raw output. They use `lg-baselines-v1` in this origin’s
+  browser localStorage, remain after sign out, and are never uploaded. Expired
+  entries are removed when the dashboard next loads, or within a minute while
+  open. Individual deletion and **Clear saved baselines** are available. Browser
+  storage limits or disabled storage are reported; saves are never silently
+  treated as successful. Limits: 10 baselines, 256 KiB per check, 2 MiB total.
+- **Comparison:** node name, location, command, target and options must match.
+  Available numeric summaries show before/after values and signed changes;
+  packet-loss changes use percentage points. DNS comparison recognizes dig’s
+  answer section and ignores TTL/order differences. Route comparison recognizes
+  numbered hops, including private hops and timeouts, and omits timing noise.
+  Unrecognized formats remain available in raw output. Missing data is not
+  interpreted as zero, and differences do not automatically imply degradation.
+- **Incident reports:** explicitly collect terminal results, guided results or
+  a multi-node comparison, then select checks and add a title and notes. Drafts
+  hold at most 20 checks / 2 MiB in memory and disappear on reload or sign out.
+  **Preview incident report** freezes the selected checks, metadata, timestamps,
+  observations and output. Exact, case-sensitive redaction applies everywhere in
+  this plain-text preview; one replacement value per line. It does not detect
+  secrets automatically. **Download incident report** downloads precisely the
+  reviewed text without contacting the server. Preview again to include draft
+  changes, discard the preview to remove its snapshot, or clear the whole draft.
+  Oversized checks are rejected with guidance to use the terminal’s direct export.
+
+**Node health overview → Agent readiness** counts reported builds, compares full
+version strings with an optional expected tag/commit, and shows availability of
+a chosen diagnostic on each node. Unknown versions and unreported capabilities
+are explicit. A different hash is not labeled older: the dashboard has no release
+ordering information. Missing native probes suggest updating the agent; missing
+external tools suggest installing that tool. No update is triggered from this view.
