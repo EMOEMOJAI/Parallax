@@ -1,1 +1,4 @@
-websocket-client==1.9.2
+# PyPI wheel and source archive hashes; reviewed with the pinned version.
+websocket-client==1.9.2 \
+    --hash=sha256:e1a673830a9c7bfa47b1cd3d5e4178f4c9651d80a4eab02c9c23a1c3ec6250ce \
+    --hash=sha256:0fcb57545848be86992e128218fd96dd87a6769ffdb1a968dff79632b85604d0
