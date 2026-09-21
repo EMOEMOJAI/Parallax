@@ -192,7 +192,7 @@ export default function Schedules({ visible, onClose, nodes }) {
 
   const create = async () => {
     setErr('')
-    if (!form.node_id || !form.command || (!form.target && form.command !== 'speedtest')) {
+    if (!form.node_id || !form.command || !form.target.trim()) {
       setErr('Pick a node, command, and target.')
       return
     }
