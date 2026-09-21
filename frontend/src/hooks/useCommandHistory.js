@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { KIT_ALLOWED_STEP_TYPES } from '../lib/capabilities'
 
 const STORAGE_KEY = 'lg-cmd-history'
@@ -21,6 +21,18 @@ export function useCommandHistory() {
   // Keep a synchronous ref copy of history so navigate() can read it
   // without depending on React 18's batched state updates
   const historyRef = useRef(history)
+
+  useEffect(() => {
+    const sync = (event) => {
+      if (event.key !== STORAGE_KEY && event.key !== null) return
+      const next = loadHistory()
+      historyRef.current = next
+      indexRef.current = -1
+      setHistory(next)
+    }
+    window.addEventListener('storage', sync)
+    return () => window.removeEventListener('storage', sync)
+  }, [])
 
   const push = useCallback((entry) => {
     setHistory((prev) => {

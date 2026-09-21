@@ -54,3 +54,26 @@ test('comparison drops invisible offline selections while idle', async ({ contex
   await expect(dialog.getByRole('button', { name: 'Run All', exact: true })).toBeDisabled()
   expect(page.errors).toEqual([])
 })
+
+for (const operation of ['remove', 'clear']) {
+  test(`history deletion in another tab stays deleted after ${operation}`, async ({ context }) => {
+    const first = await openDashboard(context)
+    await first.evaluate(() => localStorage.setItem('lg-cmd-history', JSON.stringify([{ type: 'ping', target: 'old.example' }])))
+    const second = await openDashboard(context)
+    const input = second.getByLabel('Command target', { exact: true })
+    await input.press('ArrowUp')
+    await expect(input).toHaveValue('old.example')
+    await second.getByTitle('Command history (↑/↓ in input)', { exact: true }).click()
+    await expect(second.getByText('Recent Commands', { exact: true })).toBeVisible()
+    await first.evaluate((operation) => operation === 'clear' ? localStorage.clear() : localStorage.removeItem('lg-cmd-history'), operation)
+    await expect(second.getByText('Recent Commands', { exact: true })).not.toBeVisible()
+    await input.fill('new.example')
+    await input.press('ArrowUp')
+    await expect(input).not.toHaveValue('old.example')
+    await input.fill('new.example')
+    await second.getByRole('button', { name: 'Run', exact: true }).first().click()
+    const stored = await second.evaluate(() => JSON.parse(localStorage.getItem('lg-cmd-history')))
+    expect(stored.map((entry) => entry.target)).toEqual(['new.example'])
+    expect(second.errors).toEqual([])
+  })
+}
