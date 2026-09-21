@@ -121,6 +121,6 @@ export async function openDashboard(context, options = {}) {
 }
 
 export async function chooseCommand(page, name) {
-  await page.locator('button[aria-haspopup="listbox"]').nth(1).click()
+  await page.getByRole('button', { name: /^Command type:/ }).click()
   await page.getByRole('button', { name, exact: true }).click()
 }

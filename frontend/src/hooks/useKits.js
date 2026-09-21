@@ -96,7 +96,7 @@ export function useKits() {
   // Sync across tabs (never fires for our own writes; see above).
   useEffect(() => {
     const onStorage = (e) => {
-      if (e.key === STORAGE_KEY) setKit(load())
+      if (e.key === STORAGE_KEY || e.key === null) setKit(load())
     }
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)

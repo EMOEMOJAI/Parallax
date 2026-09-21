@@ -45,6 +45,15 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
   // CommandBar, so `count` for ping and `count` for mtr keep their own bounds.
   const [optValues, setOptValues] = useState({})
   const [running, setRunning] = useState(false)
+  // Offline chips disappear from the picker. Drop their selections while idle
+  // so an invisible node cannot be dispatched repeatedly or keep Run enabled.
+  useEffect(() => {
+    if (running) return
+    setSelectedNodes((previous) => {
+      const next = previous.filter((id) => nodes.some((node) => node.id === id && node.online))
+      return next.length === previous.length ? previous : next
+    })
+  }, [nodes, running])
   const [results, setResults] = useState({}) // nodeId -> lines[]
   const [summaries, setSummaries] = useState({}) // nodeId -> parsed summary
   const cmdIds = useRef({})
@@ -327,6 +336,7 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
                 <button
                   key={node.id}
                   onClick={() => toggleNode(node.id)}
+                  aria-pressed={picked}
                   title={lacksCommand ? chipTitle(node) : undefined}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
                     transition-colors duration-200 cursor-pointer border

@@ -362,8 +362,8 @@ export default function CommandBar({
       <div ref={cmdDrop.ref} className="relative shrink-0">
         <button
           onClick={() => cmdDrop.setOpen(!cmdDrop.open)}
+          aria-label={`Command type: ${selectedCmd?.label || command}`}
           aria-expanded={cmdDrop.open}
-          aria-haspopup="listbox"
           className="flex items-center gap-2 px-3.5 py-2 rounded-lg
             bg-bg-secondary/40 backdrop-blur-sm border border-border/40
             hover:border-border-hover hover:bg-bg-secondary/60
@@ -451,7 +451,6 @@ export default function CommandBar({
             transition-colors duration-200 text-text-muted hover:text-text-primary cursor-pointer"
           title="Saved presets"
           aria-label="Saved presets"
-          aria-haspopup="menu"
           aria-expanded={presetDrop.open}
         >
           <Star size={14} className={presets.length > 0 ? 'text-warning' : ''} />
@@ -650,7 +649,6 @@ export default function CommandBar({
             onClick={() => dnsDrop.setOpen(!dnsDrop.open)}
             aria-label="DNS record type"
             aria-expanded={dnsDrop.open}
-            aria-haspopup="listbox"
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg
               bg-bg-secondary/40 backdrop-blur-sm border border-border/40
               hover:border-border-hover hover:bg-bg-secondary/60

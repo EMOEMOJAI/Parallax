@@ -25,7 +25,7 @@ export function useFocusTrap(containerRef, active) {
 
     const focusables = () =>
       Array.from(container.querySelectorAll(FOCUSABLE))
-        .filter((el) => !el.closest('[aria-hidden="true"], [inert]') && el.getClientRects().length > 0)
+        .filter((el) => !el.matches(':disabled') && !el.closest('[aria-hidden="true"], [inert]') && el.getClientRects().length > 0)
 
     const initial = focusables()[0] || container
     if (initial && typeof initial.focus === 'function') {
@@ -43,7 +43,7 @@ export function useFocusTrap(containerRef, active) {
       const last = list[list.length - 1]
       const current = document.activeElement
       if (e.shiftKey) {
-        if (current === first || !container.contains(current)) {
+        if (current === first || !container.contains(current) || current === container) {
           e.preventDefault()
           last.focus()
         }
