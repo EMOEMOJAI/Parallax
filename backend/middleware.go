@@ -352,11 +352,11 @@ func remoteAddrIP(r *http.Request) string {
 // that doesn't parse as an IP falls back to RemoteAddr.
 func clientIP(r *http.Request) string {
 	if os.Getenv("TRUST_PROXY") == "1" {
-		if v := r.Header.Get("X-Forwarded-For"); v != "" {
-			entries := strings.Split(v, ",")
+		if values := r.Header.Values("X-Forwarded-For"); len(values) > 0 {
+			entries := strings.Split(strings.Join(values, ","), ",")
 			idx := len(entries) - trustedProxyHops()
 			if idx < 0 {
-				idx = 0
+				return remoteAddrIP(r)
 			}
 			if ip, ok := normalizeIP(entries[idx]); ok {
 				return ip

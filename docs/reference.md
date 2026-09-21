@@ -87,7 +87,7 @@ Schedule results feed:
 | `PUBLIC_COMMANDS` | Comma-separated command allowlist for public sessions |
 | `PUBLIC_TARGETS` | Comma-separated target allowlist for public sessions |
 | `TRUST_PROXY` | Trust `X-Forwarded-For` / similar headers from a reverse proxy |
-| `TRUSTED_PROXY_HOPS` | Number of trusted proxy hops to peel off when trusting forwarded headers |
+| `TRUSTED_PROXY_HOPS` | Number of trusted proxy hops counted from the right across all `X-Forwarded-For` fields; malformed or shorter chains fall back to the transport peer |
 | `METRICS_TOKEN` | Bearer token for `/metrics`. When set it is required for the whole endpoint and the output is complete. When unset the endpoint stays open but the per-schedule gauges are withheld from **every** scrape — `CLIENT_API_KEY` does not unlock them |
 | `ALERT_WEBHOOK_URL` | Webhook URL that receives schedule alert POSTs |
 | `MESH_INTERVAL_SEC` | Interval, in seconds, for the server-side latency mesh |
