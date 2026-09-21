@@ -36,3 +36,9 @@ test('repeated addresses retain their separate positions in looping routes', () 
     { hop: 1, ip: '1.1.1.1' }, { hop: 2, ip: '8.8.8.8' }, { hop: 3, ip: '1.1.1.1' },
   ])
 })
+
+test('malformed literals never produce partial lookup links', () => {
+  for (const address of ['2001:4860:::8888', ':2001:4860::8888', '2001:4860::8888:', '2001:4860:1:2:3:4:5:6:7', '1.1.1.1.1']) {
+    assert.equal(detectHopAddress(` 1 router.example (${address}) 2 ms`), null, address)
+  }
+})

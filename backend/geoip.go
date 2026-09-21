@@ -139,10 +139,14 @@ func (s *Server) lookupGeoIP(ctx context.Context, ip string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	// Limit response body size
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
-	if err != nil {
-		return nil, err
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("GeoIP upstream returned HTTP %d", resp.StatusCode)
+	}
+	// Read one extra byte to distinguish an oversized body from valid JSON
+	// followed by padding beyond the limit.
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024+1))
+	if err != nil || len(body) > 64*1024 {
+		return nil, fmt.Errorf("invalid GeoIP response size")
 	}
 
 	// Validate and sanitize: parse the JSON, ensure it's valid, re-serialize with whitelisted fields only
@@ -150,21 +154,32 @@ func (s *Server) lookupGeoIP(ctx context.Context, ip string) ([]byte, error) {
 	if err := json.Unmarshal(body, &geoData); err != nil {
 		return nil, fmt.Errorf("invalid GeoIP response")
 	}
-	// Don't cache error responses from ip-api.com (e.g., rate limit, invalid IP)
-	if status, ok := geoData["status"].(string); ok && status != "success" {
-		msg, _ := geoData["message"].(string)
-		return nil, fmt.Errorf("GeoIP lookup failed: %s", msg)
+	if geoData["status"] != "success" {
+		return nil, fmt.Errorf("GeoIP response is not successful")
 	}
-	// Only pass through known safe fields to prevent forwarding unexpected data
-	allowedFields := map[string]bool{
-		"status": true, "country": true, "countryCode": true, "region": true,
-		"city": true, "lat": true, "lon": true, "isp": true, "org": true,
-		"as": true, "query": true,
+	filtered := map[string]any{"status": "success", "query": ip}
+	for _, key := range []string{"country", "countryCode", "region", "city", "isp", "org", "as"} {
+		if value, exists := geoData[key]; exists {
+			text, ok := value.(string)
+			if !ok {
+				return nil, fmt.Errorf("invalid GeoIP text field")
+			}
+			filtered[key] = sanitizeString(text, 256)
+		}
 	}
-	filtered := make(map[string]any, len(allowedFields))
-	for k, v := range geoData {
-		if allowedFields[k] {
-			filtered[k] = v
+	for key, limit := range map[string]float64{"lat": 90, "lon": 180} {
+		if value, exists := geoData[key]; exists {
+			number, ok := value.(float64)
+			if !ok || number < -limit || number > limit {
+				return nil, fmt.Errorf("invalid GeoIP coordinate")
+			}
+			filtered[key] = number
+		}
+	}
+	if value, exists := geoData["query"]; exists {
+		query, ok := value.(string)
+		if !ok || !net.ParseIP(query).Equal(net.ParseIP(ip)) {
+			return nil, fmt.Errorf("GeoIP query mismatch")
 		}
 	}
 	sanitizedBody, err := json.Marshal(filtered)
