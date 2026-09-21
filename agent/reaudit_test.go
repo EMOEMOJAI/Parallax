@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	"net/netip"
@@ -275,5 +276,21 @@ func TestDNSBenchRejectsUnrelatedAnswers(t *testing.T) {
 	got := dnsAnswerAddresses(msg, question)
 	if len(got) != 1 || got[0] != "8.8.8.8" {
 		t.Fatalf("unrelated answer included: %v", got)
+	}
+}
+
+func TestDNSBenchCancellationAfterLastRowCannotReportSuccess(t *testing.T) {
+	resolver := benchResolver{addr: s7DNSResponder(t), source: "system"}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	emit := &nativeEmitter{send: func(typ, data string) error {
+		if typ == "output" && strings.Contains(data, "answer(s)") {
+			cancel()
+		}
+		return nil
+	}}
+	err := probeDNSBenchResolvers(ctx, CommandRequest{Target: "example.com"}, emit, []benchResolver{resolver})
+	if !errors.Is(err, context.Canceled) || emit.summary != nil {
+		t.Fatalf("cancellation result: err=%v summary=%v", err, emit.summary)
 	}
 }

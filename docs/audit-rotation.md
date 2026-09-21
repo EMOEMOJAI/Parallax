@@ -34,7 +34,7 @@ compatibility and rollback behavior belong to their active subsystem chunks.
 
 ## Next up
 
-**T2-01 — Native probes and network address policy.** Baseline: `none`; due now
+**T2-02 — WebSockets and request lifecycle.** Baseline: `none`; due now
 for a full first pass. Then prioritize the remaining Tier 1 chunks, followed by
 Tier 2 and the initial Tier 3 passes. Within a tier, choose open findings and
 then the most overdue chunk; break ties by chunk ID. Cadence overrides take
@@ -63,7 +63,7 @@ lock order. Assign new files to a chunk before recording coverage.
 
 | ID | Chunk | Paths | Focus | Baseline | Last pass | Status |
 |---|---|---|---|---|---|---|
-| T2-01 | Native probes and network address policy | `agent/probes.go`, `agent/dnsbench.go`, `agent/main.go` | DNS rebinding, IPv4/IPv6 and local-address policy, redirects, TLS diagnostic verification, DNS parsing, timeouts, byte limits and cancellation. | none | none | due — first pass |
+| T2-01 | Native probes and network address policy | `agent/probes.go`, `agent/dnsbench.go`, `agent/main.go`, `backend/metadata_client.go` | DNS rebinding, IPv4/IPv6 and local-address policy, redirects, TLS diagnostic verification, DNS parsing, timeouts, byte limits and cancellation. | 5e9515feb166f485959d6dc1c1c7acbd2cfe789d | 2026-09-21 | clean |
 | T2-02 | WebSockets and request lifecycle | `backend/main.go`, `backend/agent_ws.go`, `backend/client_ws.go`, `backend/command_cleanup.go`, `backend/nodes.go`, `agent/main.go`, `agent/commands.go`, `agent/probes.go`, `agent/shell.go`, `frontend/src/hooks/useWebSocket.js`, `frontend/src/hooks/useNodes.js`, `frontend/src/lib/id.js`, `frontend/src/lib/nodes.js` | Serialized writes, lock order, backpressure, reconnect/shutdown, request ownership, stale cancellation/output, ID reuse and mixed-version compatibility. | none | none | due — first pass |
 | T2-03 | Schedules, saved runs and latency mesh | `backend/scheduler.go`, `backend/runs.go`, `backend/mesh.go`, `backend/alerts.go`, `backend/ops.go`, `frontend/src/components/Schedules.jsx`, `frontend/src/components/LatencyMatrix.jsx` | Persistence/migrations, restart recovery, retention, overlapping runs, mesh concurrency, alert delivery and sensitive state in metrics. | none | none | due — first pass |
 | T2-04 | Untrusted output and metadata parsing | `backend/summary.go`, `backend/util.go`, `backend/geoip.go`, `backend/metadata_client.go`, `backend/rdap.go`, `backend/speedtest.go`, `agent/summary.go`, `agent/testdata/`, `frontend/src/lib/`, `frontend/src/components/OutputTerminal.jsx`, `frontend/src/components/SummaryBadges.jsx`, `frontend/src/components/GeoMap.jsx` | Malformed/oversized external data, UTF-8, control characters, summary-before-done ordering, parser resource limits, text rendering and capability fallbacks. | none | none | due — first pass |
@@ -135,3 +135,4 @@ way that does not disclose sensitive details.
 | 2026-09-21 | T1-02 | medium (fixed) | Reviewed anonymous route policy, shared runs, metrics, rate limits, metadata and map escaping. Restricted metadata connections and redirects, propagated cancellation, and disabled metrics caching. Backend vet/race suite and synthetic regressions passed. Added metadata client to the scope. | [#14](https://github.com/EMOEMOJAI/Parallax/pull/14) |
 | 2026-09-21 | T1-03 | medium (fixed) | Reviewed command builders, allowlists, option bounds, subprocess/PTY cleanup, shell ownership and UI. Duplicate agent requests now preserve active streams, including disabled-shell refusals. Agent vet/race suite passed with real-WebSocket regression. | [#15](https://github.com/EMOEMOJAI/Parallax/pull/15) |
 | 2026-09-21 | T1-04 | medium (fixed) | Reviewed guards/hooks, credentials, logs and artifact privacy. Guard now checks staged blobs and broken symlinks; command logs omit targets; credential-container exclusions added. 14 guard tests, both Go vet/race suites, 26 deployment tests and secret/identity scans passed. Added command logging to scope. | [#16](https://github.com/EMOEMOJAI/Parallax/pull/16) |
+| 2026-09-21 | T2-01 | medium/low (fixed) | Reviewed native probes, DNS wire parsing, TLS verification and address policy. Fixed final DNS cancellation and bounded resolver reads; completed metadata IPv6/on-link checks and added that policy to scope. Both Go vet/race suites passed; DNS row test now uses local fixtures. | [#17](https://github.com/EMOEMOJAI/Parallax/pull/17) |

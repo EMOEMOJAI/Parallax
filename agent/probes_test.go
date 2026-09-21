@@ -1314,23 +1314,16 @@ func TestS7DNSBenchRunReportsOneRowPerResolver(t *testing.T) {
 	s7Seams(t)
 	probeAllowPrivate.Store(false)
 	storeLocalPrefixes(nil)
-	server := s7DNSResponder(t)
-
-	// The system set is the local responder; the constant public set is still
-	// queried and will simply fail fast under the short context.
-	dir := t.TempDir()
-	p := filepath.Join(dir, "resolv.conf")
-	if err := os.WriteFile(p, []byte(fmt.Sprintf("nameserver %s\n", server.Addr())), 0o600); err != nil {
-		t.Fatal(err)
+	resolvers := []benchResolver{
+		{addr: s7DNSResponder(t), source: "system"},
+		{addr: s7DNSResponder(t), source: "public"},
 	}
-	resolvConfPath = p
-	// The responder is on an ephemeral port, but production pins 53, so the
-	// system row cannot be answered here. What this test asserts is the
-	// structure: one row per resolver, then exactly one summary decision.
 	rec := &s7Recorder{}
 	emit := rec.emitter()
-	err := probeDNSBench(s7ShortCtx(t, 2*time.Second), CommandRequest{ID: "bench", Type: "dnsbench", Target: "example.com"}, emit)
-	resolvers := dnsbenchResolvers()
+	err := probeDNSBenchResolvers(s7ShortCtx(t, 2*time.Second), CommandRequest{ID: "bench", Type: "dnsbench", Target: "example.com"}, emit, resolvers)
+	if err != nil {
+		t.Fatal(err)
+	}
 	lines := strings.Split(rec.text(), "\n")
 	rows := 0
 	for _, line := range lines {
@@ -1340,17 +1333,7 @@ func TestS7DNSBenchRunReportsOneRowPerResolver(t *testing.T) {
 			}
 		}
 	}
-	if err != nil {
-		// No resolver answered (an offline build host): every row must still
-		// have been reported.
-		if rows != len(resolvers) {
-			t.Errorf("reported %d rows for %d resolvers:\n%s", rows, len(resolvers), rec.text())
-		}
-		if emit.summary != nil {
-			t.Errorf("a failed dnsbench carried a summary: %#v", emit.summary)
-		}
-		return
-	}
+
 	if rows != len(resolvers) {
 		t.Errorf("reported %d rows for %d resolvers:\n%s", rows, len(resolvers), rec.text())
 	}

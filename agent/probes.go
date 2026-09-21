@@ -1108,11 +1108,14 @@ type benchResolver struct {
 // attacker-controlled name makes that resolver emit an outbound query revealing
 // its egress IP.
 func probeDNSBench(ctx context.Context, cmd CommandRequest, emit *nativeEmitter) error {
+	return probeDNSBenchResolvers(ctx, cmd, emit, dnsbenchResolvers())
+}
+
+func probeDNSBenchResolvers(ctx context.Context, cmd CommandRequest, emit *nativeEmitter, resolvers []benchResolver) error {
 	fqdn, err := validateDNSBenchName(cmd.Target)
 	if err != nil {
 		return err
 	}
-	resolvers := dnsbenchResolvers()
 	if len(resolvers) == 0 {
 		return errors.New("no resolvers to query")
 	}
@@ -1144,6 +1147,9 @@ func probeDNSBench(ctx context.Context, cmd CommandRequest, emit *nativeEmitter)
 			r.addr.String(), r.source, ms, len(answers), clampProbeField(strings.Join(answers, ", "))); err != nil {
 			return err
 		}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	if answered == 0 {
 		return fmt.Errorf("no resolver answered for %s", fqdn)
@@ -1239,13 +1245,17 @@ func dnsbenchResolvers() []benchResolver {
 // accepted: a nameserver line naming a host would have to be resolved by the
 // resolver we are trying to measure.
 func systemResolvers() []netip.Addr {
-	data, err := os.ReadFile(resolvConfPath)
+	file, err := os.Open(resolvConfPath)
 	if err != nil {
 		return nil
 	}
-	if len(data) > maxResolvConfBytes {
-		data = data[:maxResolvConfBytes]
+	defer file.Close()
+	data := make([]byte, maxResolvConfBytes)
+	n, err := io.ReadFull(file, data)
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		return nil
 	}
+	data = data[:n]
 	var out []netip.Addr
 	for _, line := range strings.Split(string(data), "\n") {
 		if i := strings.IndexAny(line, "#;"); i >= 0 {
