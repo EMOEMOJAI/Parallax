@@ -27,34 +27,36 @@ const TOKEN_RE = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/
 export function getApiKey() {
   if (sessionOverride) return sessionKey
   try {
+    const tabKey = sessionStorage.getItem(STORAGE_KEY)
+    if (tabKey) return tabKey
+  } catch { /* tab storage may be unavailable */ }
+  try {
     return localStorage.getItem(STORAGE_KEY) || ''
   } catch {
     return sessionKey
   }
 }
 
-export function setApiKey(key) {
+export function setApiKey(key, remember = true) {
   credentialGeneration += 1
   sessionKey = key
+  // This tab always uses its explicitly selected credential, even if an old
+  // saved key cannot be removed from read-only storage.
+  sessionOverride = true
+  try { localStorage.removeItem(STORAGE_KEY) } catch { /* storage unavailable */ }
+  try { sessionStorage.removeItem(STORAGE_KEY) } catch { /* storage unavailable */ }
   try {
-    localStorage.setItem(STORAGE_KEY, key)
-    sessionOverride = false
-  } catch {
-    sessionOverride = true
-    /* storage unavailable — the key lives in React state for this tab only */
-  }
+    const storage = remember ? localStorage : sessionStorage
+    storage.setItem(STORAGE_KEY, key)
+  } catch { /* storage unavailable — retain the key in memory for this visit */ }
 }
 
 export function clearApiKey() {
   credentialGeneration += 1
   sessionKey = ''
-  try {
-    localStorage.removeItem(STORAGE_KEY)
-    sessionOverride = false
-  } catch {
-    sessionOverride = true
-    /* nothing to do */
-  }
+  sessionOverride = true
+  try { localStorage.removeItem(STORAGE_KEY) } catch { /* storage unavailable */ }
+  try { sessionStorage.removeItem(STORAGE_KEY) } catch { /* storage unavailable */ }
 }
 
 export function notifyAuthRequired() {

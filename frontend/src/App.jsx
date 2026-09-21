@@ -1,7 +1,8 @@
 import { commandSucceeded } from './lib/commandResult'
 import { randomId } from './lib/id'
 import { useState, useCallback, useEffect, useRef, useMemo, lazy, Suspense } from 'react'
-import { Activity, Grid3x3, Columns3, Map as MapIcon, Clock } from 'lucide-react'
+import { LogOut } from 'lucide-react'
+import DashboardTools from './components/DashboardTools'
 import AmbientBackground from './components/AmbientBackground'
 import NodeSelector from './components/NodeSelector'
 import NodeInfo from './components/NodeInfo'
@@ -20,7 +21,7 @@ import { useWebSocket } from './hooks/useWebSocket'
 import { useCommandHistory } from './hooks/useCommandHistory'
 import { useKits } from './hooks/useKits'
 import { useMountTransition } from './hooks/useMountTransition'
-import { apiFetch, getApiKey, setApiKey, AUTH_REQUIRED_EVENT } from './lib/api'
+import { apiFetch, getApiKey, setApiKey, clearApiKey, AUTH_REQUIRED_EVENT } from './lib/api'
 
 // Heavy panels — Leaflet (~150 KB) and xterm.js (~100 KB) — are only loaded
 // the first time their modal opens, so they don't bloat the initial bundle.
@@ -30,6 +31,17 @@ const ShellTerminal = lazy(() => import('./components/ShellTerminal'))
 const MAX_OUTPUT_LINES = 10000
 
 export default function App() {
+  const [session, setSession] = useState(0)
+  const signOut = useCallback(() => {
+    clearApiKey()
+    // Remount to close sockets and panels, abort requests, and discard displayed
+    // data from the old session before connecting without its credential.
+    setSession((value) => value + 1)
+  }, [])
+  return <Dashboard key={session} onSignOut={signOut} />
+}
+
+function Dashboard({ onSignOut }) {
   // The client key drives both transports: it re-dials /ws/client (as the
   // lg.bearer subprotocol) and rides along on every apiFetch. Keeping it in
   // state — not just localStorage — is what makes saving a key take effect
@@ -41,7 +53,7 @@ export default function App() {
 
   const ws = useWebSocket('/ws/client', authKey, authRevision)
   const { connected, send, subscribe, reconnectAttempt } = ws
-  const { nodes, loading: nodesLoading } = useNodes(subscribe, connected, authKey, authRevision)
+  const { nodes, loading: nodesLoading, error: nodesError, refetch: retryNodes } = useNodes(subscribe, connected, authKey, authRevision)
   const { history, push: pushHistory, navigate: navigateHistory, clear: clearHistory } = useCommandHistory()
   const [selectedNodeId, setSelectedNodeId] = useState(null)
   const [lines, setLines] = useState([])
@@ -104,8 +116,8 @@ export default function App() {
     return () => window.removeEventListener(AUTH_REQUIRED_EVENT, onAuthRequired)
   }, [])
 
-  const handleSaveKey = useCallback((key) => {
-    setApiKey(key)
+  const handleSaveKey = useCallback((key, remember) => {
+    setApiKey(key, remember)
     setAuthKey(key)
     // An explicit Connect retries even when the entered key is unchanged.
     setAuthRevision((revision) => revision + 1)
@@ -397,69 +409,19 @@ export default function App() {
           <div className="w-px h-6 bg-border/40 shrink-0 hidden sm:block" />
 
           <div className="shrink-0">
-            <NodeSelector nodes={nodes} selectedNode={selectedNodeId} onSelect={setSelectedNodeId} compact loading={nodesLoading} />
+            <NodeSelector nodes={nodes} selectedNode={selectedNodeId} onSelect={setSelectedNodeId} compact loading={nodesLoading} error={nodesError} onRetry={retryNodes} />
           </div>
 
           <div className="flex-1" />
 
-          {/* Feature buttons */}
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setActiveModal('map')}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
-                border transition-colors duration-200 cursor-pointer
-                ${hasTraceData
-                  ? 'bg-cyan/15 border-cyan/40 text-cyan hover:bg-cyan/25'
-                  : 'bg-bg-secondary/30 border-border/30 text-text-muted hover:text-text-primary hover:border-border-hover'}`}
-              title="Network map"
-            >
-              <MapIcon size={13} />
-              <span className="hidden md:inline">Map</span>
-              {hasTraceData && <span className="w-1.5 h-1.5 rounded-full bg-cyan animate-pulse" />}
+          <DashboardTools onSelect={setActiveModal} isPublic={isPublic} hasTraceData={hasTraceData} />
+          {authKey && (
+            <button onClick={onSignOut} title="Forget key and sign out"
+              className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-xs text-text-muted hover:text-text-primary hover:bg-hover-overlay cursor-pointer">
+              <LogOut size={16} />
+              <span>Sign out</span>
             </button>
-            <button
-              onClick={() => setActiveModal('compare')}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
-                bg-bg-secondary/30 border border-border/30 text-text-muted
-                hover:text-text-primary hover:border-border-hover transition-colors duration-200 cursor-pointer"
-              title="Multi-node comparison"
-            >
-              <Columns3 size={13} />
-              <span className="hidden md:inline">Compare</span>
-            </button>
-            <button
-              onClick={() => setActiveModal('health')}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
-                bg-bg-secondary/30 border border-border/30 text-text-muted
-                hover:text-text-primary hover:border-border-hover transition-colors duration-200 cursor-pointer"
-              title="Node health overview"
-            >
-              <Activity size={13} />
-              <span className="hidden md:inline">Health</span>
-            </button>
-            <button
-              onClick={() => setActiveModal('matrix')}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
-                bg-bg-secondary/30 border border-border/30 text-text-muted
-                hover:text-text-primary hover:border-border-hover transition-colors duration-200 cursor-pointer"
-              title="Latency matrix"
-            >
-              <Grid3x3 size={13} />
-              <span className="hidden md:inline">Matrix</span>
-            </button>
-            {!isPublic && (
-              <button
-                onClick={() => setActiveModal('schedules')}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
-                  bg-bg-secondary/30 border border-border/30 text-text-muted
-                  hover:text-text-primary hover:border-border-hover transition-colors duration-200 cursor-pointer"
-                title="Scheduled probes"
-              >
-                <Clock size={13} />
-                <span className="hidden md:inline">Schedules</span>
-              </button>
-            )}
-          </div>
+          )}
 
           <div className="w-px h-6 bg-border/40 shrink-0" />
 
@@ -477,6 +439,16 @@ export default function App() {
       {isPublic && (
         <div className="relative z-30 px-5 py-1.5 bg-warning/10 border-b border-warning/20 text-[11px] text-warning text-center">
           Public read-only mode — limited to {publicConfig.allowed_commands.join(', ') || 'no commands'} against {publicConfig.allowed_targets.length || 0} preset target{publicConfig.allowed_targets.length === 1 ? '' : 's'}.
+        </div>
+      )}
+
+      {nodesError && !keyPromptOpen && (
+        <div role="alert" className="relative flex flex-wrap items-center justify-center gap-3 border-b border-warning/30 bg-warning/10 px-5 py-3 text-sm text-warning">
+          <span>Couldn’t load agents. {nodes.length > 0 ? 'Showing the last known list.' : 'Check your connection and try again.'}</span>
+          <button onClick={retryNodes} disabled={nodesLoading}
+            className="min-h-11 rounded-lg border border-warning/40 px-4 font-medium disabled:opacity-50 cursor-pointer">
+            {nodesLoading ? 'Retrying…' : 'Retry'}
+          </button>
         </div>
       )}
 

@@ -119,6 +119,15 @@ use the `lg.bearer` subprotocol with the key as the next entry. Precedence for
 browser WebSockets is Authorization header, then subprotocol, then the legacy
 `?key=` fallback. Prefer headers or the subprotocol to avoid credentials in URLs.
 
+The dashboard asks for the client key when required. By default it stores the key
+in this tab's session storage, so reloads stay connected. Select **Remember this
+browser** only on trusted devices to save it across browser sessions. Existing
+saved keys continue to work. If browser storage is unavailable, the key is kept
+in memory for the current visit. **Sign out** forgets the saved key in this browser
+and closes this tab's connections and panels; other already-open tabs may retain
+their active sessions. It does not revoke the server key—rotate `CLIENT_API_KEY`
+to revoke that key for every client.
+
 With `PUBLIC_MODE=1`, visitors without a valid client key receive a restricted
 session. They may read the public inventory and run only allowed commands against
 allowed targets; they cannot open shells or mutate schedules and saved runs.

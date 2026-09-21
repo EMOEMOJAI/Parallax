@@ -138,7 +138,7 @@ test('terminal retains the source node when selection changes', async ({
       .emit({ id, type: 'done', data: JSON.stringify({ exit_ok: true }) })
   })
   await p.getByLabel('Selected node: Node A at Site 1').click()
-  await p.getByRole('button', { name: /Site 2 Node B/ }).click()
+  await p.getByRole('button', { name: 'Node B, Site 2, online', exact: true }).click()
   await p.getByText('OUTPUT FROM NODE A', { exact: true }).waitFor()
   assert.equal(
     await p
