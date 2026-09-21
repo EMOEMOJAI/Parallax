@@ -40,7 +40,7 @@ jobs:
       - name: Package binaries and dashboard
         run: python3 scripts/package-release.py
       - name: Install integration test dependencies
-        run: python3 -m pip install -r tests/integration/requirements.txt
+        run: python3 -m pip install --require-hashes -r tests/integration/requirements.txt
       - name: Run the extracted archives on the native CPU
         run: python3 tests/integration/releases.py
       - name: Save archive test evidence
