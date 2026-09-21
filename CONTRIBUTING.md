@@ -12,7 +12,7 @@ Run the checks for the areas you touched:
 ```sh
 (cd backend && go vet ./... && go test -race ./...)
 (cd agent && go vet ./... && go test -race ./...)
-(cd frontend && npm test && npm run build)
+(cd frontend && npm run lint && npm test && npm run build)
 python3 -m unittest discover -s deploy/tests
 shellcheck deploy/*.sh
 git diff --check
@@ -100,6 +100,51 @@ email addresses and private deployment addresses/domains. It complements secret
 scanning and manual review; it cannot detect every personal detail. Network policy
 tests may contain synthetic private addresses. Do not add real deployment markers
 to a public denylist, since the denylist would disclose those markers itself.
+
+## Additional CI checks
+
+Frontend lint runs `npm run lint` with JavaScript correctness, hook-order and
+hook-dependency rules. Fix dependencies without discarding deliberate credential
+refresh/reconnect triggers. Node 24 is the CI toolchain; development also supports
+Node 22.13 or later in the 22.x line.
+
+Firefox and WebKit run a focused smoke suite for login, native WebSocket output,
+PTY rendering, dialog focus and cross-tab storage. Chromium also runs those
+cases alongside the full existing suite. All browser data is synthetic. Run:
+
+```sh
+cd frontend
+npx playwright install --with-deps firefox webkit
+npm run build
+npm run test:e2e -- --project=firefox --project=webkit
+```
+
+Both Go modules fuzz pure parsing/validation functions without network calls.
+Every fuzz target runs for 10 seconds with two workers on PRs and ordinary CI;
+the weekly run uses 120 seconds per target. Seed cases also run in the normal
+race suite. Failures retain synthetic reproducers for seven days; review and
+commit useful minimized cases. For example:
+
+```sh
+(cd backend && go test -run '^$' -fuzz '^FuzzValidateSummary$' -fuzztime 10s -parallel 2 .)
+(cd agent && go test -run '^$' -fuzz '^FuzzDNSAnswers$' -fuzztime 10s -parallel 2 .)
+```
+
+Artifact privacy checks inspect complete release archives, `/app` payloads and
+configuration of production images (including earlier application layers and
+build history), and archive owner/extended metadata. They
+reject credential filenames, personal build paths, private keys, identifying
+text and unapproved PNG/JPEG metadata. OS packages outside `/app` remain covered
+by the image vulnerability scan. A scratch Docker build verifies real context
+exclusion using synthetic credential files; it never reads production secrets.
+
+```sh
+python3 scripts/check-artifact-privacy.py --archive release-dist/example.tar.gz
+python3 scripts/check-artifact-privacy.py --check-context --image parallax-server:ci --image parallax-agent:ci
+```
+
+These are bounded checks, not proof that every possible identifying detail is
+absent. All jobs use GitHub-hosted runners and need no homelab credentials.
 
 ## Recurring audits
 

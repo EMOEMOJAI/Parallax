@@ -33,7 +33,7 @@ export function useNodes(wsSubscribe, wsConnected, authKey = '', authRevision = 
         setLoading(false)
       }
     }
-  }, [authKey, authRevision])
+  }, [])
 
   useEffect(() => {
     fetchNodes()
@@ -43,7 +43,7 @@ export function useNodes(wsSubscribe, wsConnected, authKey = '', authRevision = 
       pendingRef.current?.controller.abort()
       pendingRef.current = null
     }
-  }, [fetchNodes, wsConnected])
+  }, [fetchNodes, wsConnected, authKey, authRevision])
 
   useEffect(() => {
     if (!wsSubscribe) return

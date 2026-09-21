@@ -9,10 +9,10 @@ export default function AgentVersion({ version }) {
   const timer = useRef(null)
   const revision = useRef(0)
   useEffect(() => {
-    revision.current++
+    const current = ++revision.current
     setCopied(false)
     setFailed(false)
-    return () => { revision.current++; clearTimeout(timer.current) }
+    return () => { revision.current = current + 1; clearTimeout(timer.current) }
   }, [value])
   const copy = async () => {
     const current = revision.current

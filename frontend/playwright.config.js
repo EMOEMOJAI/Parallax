@@ -15,6 +15,11 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
+    ...['firefox', 'webkit'].map((browserName) => ({
+      name: browserName,
+      testMatch: '**/cross-browser.spec.js',
+      use: { browserName, baseURL: 'http://127.0.0.1:5199' },
+    })),
     {
       name: 'production',
       testIgnore: ['**/auth-source.spec.js', '**/visual.spec.js'],

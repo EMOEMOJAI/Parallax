@@ -400,7 +400,7 @@ function Dashboard({ onSignOut }) {
       captureRunMeta(command)
       dispatchCommand(command)
     },
-    [selectedNodeId, selectedNode, send, pushHistory, connected, running, dispatchCommand, captureRunMeta, resetKitRun, dismissReplay]
+    [selectedNodeId, selectedNode, pushHistory, connected, running, dispatchCommand, captureRunMeta, resetKitRun, dismissReplay]
   )
 
   const handleStop = useCallback(() => {
