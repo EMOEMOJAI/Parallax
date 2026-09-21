@@ -3,18 +3,21 @@ import { Copy, Check, Server } from 'lucide-react'
 import IconSwap from './IconSwap'
 
 export default function NodeInfo({ node }) {
+  const [copyError, setCopyError] = React.useState('')
   const [copied, setCopied] = React.useState(null)
   const copiedTimer = React.useRef(null)
   React.useEffect(() => () => clearTimeout(copiedTimer.current), [])
 
-  const copyToClipboard = (text, field) => {
-    navigator.clipboard?.writeText(text).then(() => {
+  const copyToClipboard = async (text, field) => {
+    setCopyError('')
+    try {
+      await navigator.clipboard.writeText(text)
       setCopied(field)
       clearTimeout(copiedTimer.current)
       copiedTimer.current = setTimeout(() => setCopied(null), 2000)
-    }).catch(() => {
-      // Clipboard API can fail if page lacks focus or permissions
-    })
+    } catch {
+      setCopyError('Couldn’t copy. Select the address and copy it manually.')
+    }
   }
 
   if (!node) return null
@@ -26,6 +29,7 @@ export default function NodeInfo({ node }) {
         <Server size={13} className="text-accent-text" />
         <span className="text-xs font-semibold uppercase tracking-widest text-accent-text">Node Details</span>
       </div>
+      {copyError && <p role="status" className="mb-3 text-xs text-warning">{copyError}</p>}
       <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
         <div>
           <span className="text-text-muted">Provider</span>

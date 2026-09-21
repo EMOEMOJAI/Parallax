@@ -55,7 +55,9 @@ function Dashboard({ onSignOut }) {
   const { connected, send, subscribe, reconnectAttempt } = ws
   const { nodes, loading: nodesLoading, error: nodesError, refetch: retryNodes } = useNodes(subscribe, connected, authKey, authRevision)
   const { history, push: pushHistory, navigate: navigateHistory, clear: clearHistory } = useCommandHistory()
-  const [selectedNodeId, setSelectedNodeId] = useState(null)
+  const [selectedNodeId, setSelectedNodeId] = useState(() => {
+    try { return localStorage.getItem('lg-selected-node') || null } catch { return null }
+  })
   const [lines, setLines] = useState([])
   // Structured summary of the run currently in the terminal (S2). Replaced on
   // every dispatch — including each step of a diagnostic kit — so it always
@@ -224,6 +226,7 @@ function Dashboard({ onSignOut }) {
         setLastCommandType(rec.command)
         setSummary(null)
         setRunMeta({
+          sharedAt: rec.created_at || null,
           command: rec.command,
           target: rec.target,
           options: rec.options,
@@ -257,11 +260,17 @@ function Dashboard({ onSignOut }) {
     : [], [running, lastCommandType, lines])
 
   useEffect(() => {
+    if (nodesLoading || nodesError) return
     if ((!selectedNodeId || !nodes.some((n) => n.id === selectedNodeId)) && nodes.length > 0) {
       const online = nodes.find((n) => n.online)
-      if (online) setSelectedNodeId(online.id)
+      setSelectedNodeId((online || nodes[0]).id)
     }
-  }, [nodes, selectedNodeId])
+  }, [nodes, selectedNodeId, nodesLoading, nodesError])
+
+  useEffect(() => {
+    if (nodesLoading || nodesError || !nodes.some((node) => node.id === selectedNodeId)) return
+    try { localStorage.setItem('lg-selected-node', selectedNodeId) } catch { /* memory-only selection */ }
+  }, [nodes, selectedNodeId, nodesLoading, nodesError])
 
   useEffect(() => {
     const unsub = subscribe('app', (data) => {
@@ -314,6 +323,7 @@ function Dashboard({ onSignOut }) {
   const captureRunMeta = useCallback((command) => {
     const node = nodes.find((n) => n.id === selectedNodeId)
     setRunMeta({
+      startedAt: new Date().toISOString(),
       command: command.type,
       target: command.target || '',
       options: command.options || '',
@@ -327,6 +337,8 @@ function Dashboard({ onSignOut }) {
     (command) => {
       if (!selectedNodeId) return
       if (!connected) {
+        setRunMeta(null)
+        setSummary(null)
         setLines([{ _id: ++lineIdCounter.current, type: 'error', text: '✗ Not connected to server.' }])
         return
       }

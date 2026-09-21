@@ -1,4 +1,5 @@
 import { commandSucceeded } from '../lib/commandResult'
+import { comparisonCsv, downloadFile } from '../lib/resultExport'
 import { randomId } from '../lib/id'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Columns3, Play, Square, Globe, X } from 'lucide-react'
@@ -54,6 +55,7 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
       return next.length === previous.length ? previous : next
     })
   }, [nodes, running])
+  const [runMeta, setRunMeta] = useState(null)
   const [results, setResults] = useState({}) // nodeId -> lines[]
   const [summaries, setSummaries] = useState({}) // nodeId -> parsed summary
   const cmdIds = useRef({})
@@ -213,6 +215,12 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
     const options = encodeOptions(command, optValues[command], ipVersion)
 
     const now = Date.now()
+    setRunMeta({ command, target: target.trim(), options, startedAt: new Date(now).toISOString(),
+      nodes: selectedNodes.map((id) => {
+        const node = nodes.find((item) => item.id === id)
+        return { id, name: node?.name || id, location: node?.location || '' }
+      }),
+    })
     selectedNodes.forEach((nodeId) => {
       const cmdId = randomId()
       cmdIds.current[nodeId] = cmdId
@@ -223,7 +231,7 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
         command: { id: cmdId, type: command, target: target.trim(), options }
       })
     })
-  }, [selectedNodes, command, target, wsRef, running, optValues, ipVersion, commandDisallowed, targetDisallowed])
+  }, [selectedNodes, command, target, wsRef, running, optValues, ipVersion, commandDisallowed, targetDisallowed, nodes])
 
   // Watchdog: time out per-node commands that never produce a `done` message.
   useEffect(() => {
@@ -320,6 +328,8 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
             <Columns3 size={16} className="text-accent-text" />
             <span className="text-sm font-semibold text-text-primary">Multi-Node Comparison</span>
           </div>
+          {runMeta && <button disabled={running || flushScheduled.current} onClick={() => downloadFile(comparisonCsv(runMeta, results, summaries), 'text/csv;charset=utf-8', 'parallax-comparison.csv')}
+            className="ml-auto mr-2 min-h-11 rounded-lg px-3 text-xs text-text-muted hover:text-text-primary disabled:opacity-40 cursor-pointer">Download CSV</button>}
           <button onClick={handleClose}
             className="text-xs text-text-muted hover:text-text-primary px-2 py-1 rounded-lg hover:bg-hover-overlay transition-colors cursor-pointer">
             Close

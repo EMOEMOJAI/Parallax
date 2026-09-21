@@ -133,6 +133,31 @@ session. They may read the public inventory and run only allowed commands agains
 allowed targets; they cannot open shells or mutate schedules and saved runs.
 When `CLIENT_API_KEY` is unset in public mode, every client session is restricted.
 
+### Dashboard results and sharing
+
+The dashboard remembers the selected node in this browser (`lg-selected-node`)
+and picks an available node if that ID disappears. Storage failures fall back to
+an in-memory selection.
+
+Output search filters displayed lines only; copying, downloading and sharing use
+the full retained output buffer. Pause auto-scroll keeps the view in place while
+results continue to arrive. **Jump to latest** clears the search and resumes
+following output.
+
+Text downloads contain the retained output. JSON downloads also include the
+captured node, command, target, options, run start time (when available), export
+time and structured summary. Comparison CSV downloads capture the executed
+command and nodes, even if controls are edited afterward. CSV cells are quoted
+and spreadsheet formula prefixes are neutralized.
+
+Sharing opens a fixed snapshot for review before making a request. Optional
+redaction replaces exact, case-sensitive text in both metadata and output; it is
+not automatic detection of secrets. The preview shows the request content.
+Permalinks are readable without authentication by anyone who has the URL, expire
+after 24 hours, and can disappear earlier after a server restart or eviction.
+If clipboard access fails, the created URL remains available for manual copying.
+Searches and redaction do not modify the original diagnostic output.
+
 ### Route access
 
 | route | auth |

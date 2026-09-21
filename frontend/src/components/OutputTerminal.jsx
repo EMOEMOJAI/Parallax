@@ -1,5 +1,7 @@
 import IconSwap from './IconSwap'
 import StatusToast from './StatusToast'
+import SharePreview from './SharePreview'
+import { resultDocument, shareDocument, downloadFile } from '../lib/resultExport'
 import { useRef, useEffect, useState, memo, useCallback, useMemo } from 'react'
 import { Terminal as TermIcon, Copy, Check, Download, Trash2, Share2, X, Loader } from 'lucide-react'
 import SummaryBadges from './SummaryBadges'
@@ -119,7 +121,14 @@ export default function OutputTerminal({ lines, nodeName, onClear, runMeta, canS
     clearTimeout(copiedTimer.current)
     clearTimeout(shareTimer.current)
   }, [])
-  const [sharing, setSharing] = useState(false)
+  const [shareSnapshot, setShareSnapshot] = useState(null)
+  const [search, setSearch] = useState('')
+  const [following, setFollowing] = useState(true)
+  const [paused, setPaused] = useState(false)
+  const filteredLines = useMemo(() => {
+    const query = search.toLowerCase()
+    return query ? lines.filter((line) => line.text.toLowerCase().includes(query)) : lines
+  }, [lines, search])
   const [shareToast, setShareToast] = useState('')
   const autoScroll = useRef(true)
 
@@ -258,86 +267,58 @@ export default function OutputTerminal({ lines, nodeName, onClear, runMeta, canS
   }, [])
 
   useEffect(() => {
-    if (autoScroll.current && containerRef.current) {
+    if (autoScroll.current && !paused && !search && containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight
     }
-  }, [lines])
+  }, [lines, paused, search])
 
   const handleScroll = () => {
     if (!containerRef.current) return
     const { scrollTop, scrollHeight, clientHeight } = containerRef.current
     autoScroll.current = scrollHeight - scrollTop - clientHeight < 40
+    setFollowing(autoScroll.current)
   }
 
   const getOutputText = () => lines.map((l) => l.text).join('\n')
 
-  const copyOutput = () => {
-    navigator.clipboard?.writeText(getOutputText()).then(() => {
+  const notify = (message) => {
+    clearTimeout(shareTimer.current)
+    setShareToast(message)
+    shareTimer.current = setTimeout(() => setShareToast(''), 4000)
+  }
+
+  const copyOutput = async () => {
+    try {
+      await navigator.clipboard.writeText(getOutputText())
       setCopied(true)
       clearTimeout(copiedTimer.current)
       copiedTimer.current = setTimeout(() => setCopied(false), 2000)
-    }).catch(() => {
-      // Clipboard API can fail if page lacks focus or permissions
-    })
+    } catch {
+      notify('Couldn’t copy output. Download it or select the text and copy manually.')
+    }
   }
 
-  const shareRun = useCallback(async () => {
-    if (!runMeta || lines.length === 0 || sharing) return
-    setSharing(true)
-    clearTimeout(shareTimer.current)
-    setShareToast('')
-    try {
-      // Strip the React-internal _id from each line. Server only stores type + text.
-      const payloadLines = lines.map((l) => ({ type: l.type, text: l.text }))
-      const res = await apiFetch('/api/runs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          node_name: runMeta.nodeName || '',
-          node_flag: runMeta.nodeFlag || '',
-          node_location: runMeta.nodeLocation || '',
-          command: runMeta.command || '',
-          target: runMeta.target || '',
-          options: runMeta.options || '',
-          lines: payloadLines,
-        }),
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const { id } = await res.json()
-      const url = `${window.location.origin}/?run=${id}`
-      try {
-        await navigator.clipboard.writeText(url)
-        setShareToast('Link copied to clipboard')
-      } catch {
-        setShareToast(url)
-      }
-      shareTimer.current = setTimeout(() => setShareToast(''), 4000)
-    } catch (err) {
-      setShareToast('Share failed: ' + err.message)
-      shareTimer.current = setTimeout(() => setShareToast(''), 4000)
-    } finally {
-      setSharing(false)
-    }
-  }, [runMeta, lines, sharing])
-
-  const exportOutput = () => {
-    const text = getOutputText()
-    const blob = new Blob([text], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
+  const exportOutput = (format = 'txt') => {
+    const text = format === 'json' ? JSON.stringify(resultDocument(runMeta, lines, summary), null, 2) : getOutputText()
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
     const safeName = (nodeName || 'output').replace(/[^a-zA-Z0-9_-]/g, '_')
-    a.download = `parallax-${safeName}-${timestamp}.txt`
-    a.click()
-    // Delay revocation to ensure the download starts
-    setTimeout(() => URL.revokeObjectURL(url), 10000)
+    downloadFile(text, format === 'json' ? 'application/json' : 'text/plain', `parallax-${safeName}-${timestamp}.${format}`)
+  }
+
+  const jumpToLatest = () => {
+    setSearch('')
+    setPaused(false)
+    setFollowing(true)
+    autoScroll.current = true
+    requestAnimationFrame(() => {
+      if (containerRef.current) containerRef.current.scrollTop = containerRef.current.scrollHeight
+    })
   }
 
   return (
     <div className="flex flex-col rounded-2xl border border-border/40 bg-bg-secondary/20 backdrop-blur-sm overflow-hidden">
       {/* Title bar */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/30 bg-bg-secondary/40">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 border-b border-border/30 bg-bg-secondary/40">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
@@ -353,7 +334,7 @@ export default function OutputTerminal({ lines, nodeName, onClear, runMeta, canS
             <button
               onClick={onClear}
               disabled={lines.length === 0}
-              className="p-1 rounded-md hover:bg-hover-overlay transition-colors text-text-muted hover:text-text-primary cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-md hover:bg-hover-overlay transition-colors text-text-muted hover:text-text-primary cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
               title="Clear output"
             >
               <Trash2 size={13} />
@@ -361,26 +342,28 @@ export default function OutputTerminal({ lines, nodeName, onClear, runMeta, canS
           )}
           {canShare && runMeta && (
             <button
-              onClick={shareRun}
-              disabled={lines.length === 0 || sharing}
-              className="p-1 rounded-md hover:bg-hover-overlay transition-colors text-text-muted hover:text-text-primary cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+              onClick={() => setShareSnapshot(shareDocument(runMeta, lines))}
+              disabled={lines.length === 0}
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-md hover:bg-hover-overlay transition-colors text-text-muted hover:text-text-primary cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
               title="Share output (creates a 24-hour permalink)"
             >
               <Share2 size={13} />
             </button>
           )}
           <button
-            onClick={exportOutput}
+            onClick={() => exportOutput('txt')}
             disabled={lines.length === 0}
-            className="p-1 rounded-md hover:bg-hover-overlay transition-colors text-text-muted hover:text-text-primary cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-md hover:bg-hover-overlay transition-colors text-text-muted hover:text-text-primary cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
             title="Download output"
           >
             <Download size={13} />
           </button>
+          <button onClick={() => exportOutput('json')} disabled={lines.length === 0} title="Download JSON"
+            className="min-h-11 min-w-11 rounded-md px-2 text-xs text-text-muted hover:text-text-primary hover:bg-hover-overlay disabled:opacity-30 cursor-pointer">JSON</button>
           <button
             onClick={copyOutput}
             disabled={lines.length === 0}
-            className="p-1 rounded-md hover:bg-hover-overlay transition-colors text-text-muted hover:text-text-primary cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-md hover:bg-hover-overlay transition-colors text-text-muted hover:text-text-primary cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
             title="Copy output"
           >
             <IconSwap active={copied} from={<Copy size={13} />} to={<Check size={13} className="text-success" />} />
@@ -395,10 +378,26 @@ export default function OutputTerminal({ lines, nodeName, onClear, runMeta, canS
       )}
 
       <StatusToast message={shareToast} />
+      {shareSnapshot && <SharePreview snapshot={shareSnapshot} onClose={() => setShareSnapshot(null)} onShared={notify} />}
+      {lines.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-border/20 px-4 py-2 text-xs text-text-muted">
+          <input type="search" aria-label="Search output" placeholder="Search output…" value={search} onChange={(event) => setSearch(event.target.value)}
+            className="min-h-11 min-w-0 flex-1 rounded-lg border border-border/40 bg-bg-primary/60 px-3 text-text-primary" />
+          {search && <span role="status">{filteredLines.length} matching lines</span>}
+          <button aria-pressed={paused} onClick={() => paused ? jumpToLatest() : setPaused(true)}
+            className="min-h-11 rounded-lg border border-border/40 px-3 hover:text-text-primary cursor-pointer">
+            {paused ? 'Resume auto-scroll' : 'Pause auto-scroll'}
+          </button>
+          {(!following || paused || search) && <button onClick={jumpToLatest}
+            className="min-h-11 rounded-lg border border-accent/40 px-3 text-accent-text cursor-pointer">Jump to latest</button>}
+        </div>
+      )}
 
       {/* Body */}
       <div
         ref={containerRef}
+        role="region"
+        aria-label="Diagnostic output"
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto p-4 font-mono text-[13px] leading-relaxed"
         style={{ background: 'rgba(14, 14, 20, 0.75)', minHeight: 420, maxHeight: 'calc(100vh - 220px)' }}
@@ -450,7 +449,7 @@ export default function OutputTerminal({ lines, nodeName, onClear, runMeta, canS
             </div>
           </div>
         ) : (
-          lines.map((line, i) => (
+          filteredLines.map((line, i) => (
             <OutputLine
               key={line._id || i}
               type={line.type}

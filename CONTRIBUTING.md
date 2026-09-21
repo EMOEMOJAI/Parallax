@@ -53,7 +53,8 @@ npm run build
 npm run test:e2e -- --project=production --project=source-auth
 ```
 
-Visual regression checks cover login, desktop, mobile, and the mobile tools menu.
+Visual regression checks cover login, desktop, mobile, the mobile tools menu,
+mobile output, and the share preview.
 Run them from the repository root in the same pinned Linux browser container as
 GitHub CI (the anonymous dependency volume keeps Linux packages off your host):
 
