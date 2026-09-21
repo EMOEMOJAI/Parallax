@@ -101,12 +101,13 @@ func (s *Server) handleRDAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 512*1024))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 512*1024+1))
 	if err != nil {
 		writeJSONError(w, "RDAP lookup failed", 502)
 		return
 	}
-	if !json.Valid(body) {
+	var record map[string]json.RawMessage
+	if len(body) > 512*1024 || json.Unmarshal(body, &record) != nil || record == nil {
 		writeJSONError(w, "invalid RDAP response", 502)
 		return
 	}

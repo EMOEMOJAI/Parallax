@@ -26,7 +26,9 @@ function isIpv4(v) {
 
 function isIpv6(v) {
   if (!v.includes(':') || !/^[0-9A-Fa-f:]{2,45}$/.test(v)) return false
-  if (v.split('::').length - 1 > 1) return false
+  if (v.includes(':::') || v.split('::').length - 1 > 1) return false
+  if (v.startsWith(':') && !v.startsWith('::')) return false
+  if (v.endsWith(':') && !v.endsWith('::')) return false
   const parts = v.split(':')
   if (parts.some((p) => p.length > 4)) return false
   if (v.includes('::')) return parts.filter((p) => p !== '').length <= 7
@@ -74,6 +76,10 @@ export function detectHopAddress(text) {
   let m
   while ((m = ADDR_RE.exec(text)) !== null) {
     const candidate = m[0]
+    // Do not turn a valid-looking prefix of a malformed literal into a link.
+    const before = text[m.index - 1] || ''
+    const after = text[m.index + candidate.length] || ''
+    if (/[0-9a-fA-F:.]/.test(before) || /[0-9a-fA-F:.]/.test(after)) continue
     if (!isIpLiteral(candidate) || isNonRoutable(candidate)) continue
     return { ip: candidate, start: m.index, end: m.index + candidate.length }
   }

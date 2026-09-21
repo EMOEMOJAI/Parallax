@@ -1,4 +1,6 @@
 import { memo } from 'react'
+import { summaryNumber } from '../lib/summaryNumber'
+export { summaryNumber } from '../lib/summaryNumber'
 
 // Structured probe summaries (S2). The server validates and sanitizes every
 // summary before it gets here, but this component is the last hop before the
@@ -28,12 +30,6 @@ export function clampSummaryString(value) {
  */
 export function summaryBool(value) {
   return typeof value === 'boolean' ? value : null
-}
-
-export function summaryNumber(value) {
-  if (value === null || value === undefined || value === '' || typeof value === 'boolean') return null
-  const n = Number(value)
-  return isFinite(n) ? n : null
 }
 
 // parseSummary turns whatever arrived into a plain object, or null. Unparsable

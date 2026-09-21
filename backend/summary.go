@@ -91,7 +91,11 @@ func validateSummary(data string) (canonical []byte, ok bool) {
 		if !valueOK {
 			return nil, false
 		}
-		out[sanitizeSummaryString(key)] = clean
+		cleanKey := sanitizeSummaryString(key)
+		if _, exists := out[cleanKey]; exists {
+			return nil, false
+		}
+		out[cleanKey] = clean
 	}
 	canonical, err := json.Marshal(out)
 	if err != nil {
@@ -158,7 +162,11 @@ func sanitizeSummaryFlatObject(obj map[string]any) (map[string]any, bool) {
 		if !ok {
 			return nil, false // nested object/array inside a hop
 		}
-		out[sanitizeSummaryString(key)] = scalar
+		cleanKey := sanitizeSummaryString(key)
+		if _, exists := out[cleanKey]; exists {
+			return nil, false
+		}
+		out[cleanKey] = scalar
 	}
 	return out, true
 }
