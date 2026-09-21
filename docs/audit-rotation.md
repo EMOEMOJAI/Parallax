@@ -24,20 +24,27 @@ Setup date: 2026-09-20. Public history and merged PRs were inspected.
 [PR #1](https://github.com/EMOEMOJAI/Parallax/pull/1) and
 [PR #7](https://github.com/EMOEMOJAI/Parallax/pull/7) document regression tests,
 privacy checks and release validation, but do not establish complete, scoped
-audit coverage for the chunks below. All baselines therefore start at `none`.
+audit coverage for the chunks below. Baselines were therefore initialized to `none`.
 This does not discard prior fixes or claim that no earlier reviews occurred.
 
 All 12 chunks were initially due as of setup. The tables below track completed passes.
 Dates become meaningful after each recorded pass; do not use setup or CI run
 dates as audit dates. There is no separate frozen or legacy source directory;
 compatibility and rollback behavior belong to their active subsystem chunks.
+A pre-existing untracked social-preview image was inspected separately and left
+out of these PRs; it is not represented by the recorded commit baselines.
 
 ## Next up
 
-**T3-02 — Documentation and tool guidance.** Baseline: `none`; due now for a full first pass.
-Finish remaining Tier 2 chunks, then the initial Tier 3 passes. Within a tier,
-prioritize open findings and the most overdue chunk; break ties by chunk ID.
-Cadence overrides take precedence. Update this pointer after each review.
+**T1-01 — Authentication and browser credentials**, next scheduled review
+**2026-12-21**. All 12 initial passes are complete with no unresolved findings
+within their reviewed scopes. Baselines below identify the reviewed commits in
+the linked PRs; coverage does not imply deployment.
+
+Tier 1 is next due on 2026-12-21; Tier 2 on 2027-03-21. Tier 3 runs on touch.
+Changes and cadence overrides can trigger earlier reviews. Prioritize open
+findings and the most overdue chunk; break ties by chunk ID. Update this pointer
+after each review.
 
 ## Scope conventions
 
@@ -74,7 +81,7 @@ lock order. Assign new files to a chunk before recording coverage.
 | ID | Chunk | Paths | Focus | Baseline | Last pass | Status |
 |---|---|---|---|---|---|---|
 | T3-01 | Dashboard behavior and accessibility | `frontend/src/`, `frontend/tests/`, `frontend/index.html`, `frontend/public/` | Remaining UI behavior, local history/kits/presets, subscriptions, accessibility, rendering bounds and error recovery. Trigger: change to UI behavior, browser storage, styles, assets or frontend tests; retain higher-tier security reviews where applicable. | bbf104cd2f695c0afe94887c05bd459473cb7bdf | 2026-09-21 | clean |
-| T3-02 | Documentation and tool guidance | `docs/`, `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `llms.txt`, `LICENSE`, `.github/copilot-instructions.md` | Accurate defaults, setup/recovery instructions, safe examples, links and consistent coding-tool guidance. Trigger: documentation/branding changes or code changes affecting documented configuration, protocols, installation or recovery. | none | none | due — first pass |
+| T3-02 | Documentation and tool guidance | `docs/`, `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `llms.txt`, `LICENSE`, `.github/copilot-instructions.md` | Accurate defaults, setup/recovery instructions, safe examples, links and consistent coding-tool guidance. Trigger: documentation/branding changes or code changes affecting documented configuration, protocols, installation or recovery. | 6468fafbfe036721ce81544dbca1022330556125 | 2026-09-21 | clean |
 
 ## Cadence overrides
 
@@ -141,3 +148,4 @@ way that does not disclose sensitive details.
 | 2026-09-21 | T2-05 | medium (fixed) | Reviewed installer/update trust, downloads, service permissions, config preservation, rollback and runtime/release packaging. Schedule migration now atomically replaces runtime destinations without following symlinks. All 28 deployment tests, ShellCheck and privacy checks passed. | [#21](https://github.com/EMOEMOJAI/Parallax/pull/21) |
 | 2026-09-21 | T2-06 | low (fixed) | Reviewed dependencies, workflow trust/permissions, hosted runners, build configuration, container scans and release gates/provenance. Added Python vulnerability scanning and artifact hashes. Go/npm/Python scans and Dependabot alerts were clean; no dependency updates found. Hash-checked install, actionlint, guard tests and privacy checks passed. | [#22](https://github.com/EMOEMOJAI/Parallax/pull/22) |
 | 2026-09-21 | T3-01 | low (fixed) | Reviewed dashboard flows, storage, subscriptions, focus, accessibility, rendering and recovery. Fixed disabled-fieldset focus wrapping, cross-tab clearing, dropdown semantics and offline comparison selections. Frontend unit/build, all 37 browser tests and privacy checks passed. | [#23](https://github.com/EMOEMOJAI/Parallax/pull/23) |
+| 2026-09-21 | T3-02 | low (fixed) | Reviewed all documentation, tool guidance, examples, branding and links against current behavior. Corrected build/version guidance, auth/defaults, external-tool requirements and recovery placement. Reference tests, 51 local links and privacy checks passed; hosted protections and map policy verified. | [#24](https://github.com/EMOEMOJAI/Parallax/pull/24) |
