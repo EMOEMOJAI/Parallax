@@ -232,9 +232,10 @@ func (s *Server) handleLatencyMatrix(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *Server) broadcastNodeStatus(nodeID string, online bool) {
+func (s *Server) nodeStatusMessage(nodeID string) []byte {
 	s.nodesMu.RLock()
 	node, exists := s.nodes[nodeID]
+	online := false
 	if exists {
 		// An older connection's delayed disconnect broadcast must not
 		// overwrite the status of a replacement that is already online.
@@ -275,7 +276,10 @@ func (s *Server) broadcastNodeStatus(nodeID string, online bool) {
 	s.nodesMu.RUnlock()
 
 	msg, _ := json.Marshal(payload)
+	return msg
+}
 
+func (s *Server) broadcastNodeStatus(nodeID string, online bool) {
 	// Snapshot clients under lock, then write concurrently.
 	// Fire-and-forget: don't block the caller (e.g., agent read loop)
 	// waiting for slow clients — each write has a 5s deadline.
@@ -293,6 +297,9 @@ func (s *Server) broadcastNodeStatus(nodeID string, online bool) {
 		go func(c *websocket.Conn, mu *sync.Mutex) {
 			defer func() { <-s.broadcastSem }()
 			mu.Lock()
+			// Queued goroutines can acquire this writer out of order. Snapshot
+			// only now so delayed broadcasts cannot restore stale metadata.
+			msg := s.nodeStatusMessage(nodeID)
 			c.SetWriteDeadline(time.Now().Add(5 * time.Second))
 			c.WriteMessage(websocket.TextMessage, msg)
 			c.SetWriteDeadline(time.Time{})

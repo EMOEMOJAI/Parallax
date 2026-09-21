@@ -76,20 +76,26 @@ func s11SendCommand(t *testing.T, conn *websocket.Conn, nodeID string, cmd Comma
 	}
 }
 
-// s11ReadFrame reads one CommandResponse frame within the timeout. ok is
+// s11ReadFrame reads one command frame, skipping node broadcasts within the timeout. ok is
 // false if nothing arrived (deadline exceeded) or the socket closed.
 func s11ReadFrame(t *testing.T, conn *websocket.Conn, timeout time.Duration) (resp CommandResponse, ok bool) {
 	t.Helper()
 	conn.SetReadDeadline(time.Now().Add(timeout))
 	defer conn.SetReadDeadline(time.Time{})
-	_, msg, err := conn.ReadMessage()
-	if err != nil {
-		return CommandResponse{}, false
+	for {
+		_, msg, err := conn.ReadMessage()
+		if err != nil {
+			return CommandResponse{}, false
+		}
+		if err := json.Unmarshal(msg, &resp); err != nil {
+			t.Fatalf("unmarshal frame: %v (raw: %s)", err, msg)
+		}
+		// Registration broadcasts can race client connection setup. They are
+		// independent of command admission; never skip command error/done frames.
+		if resp.Type != "node_status" {
+			return resp, true
+		}
 	}
-	if err := json.Unmarshal(msg, &resp); err != nil {
-		t.Fatalf("unmarshal frame: %v (raw: %s)", err, msg)
-	}
-	return resp, true
 }
 
 // s11ExpectError asserts an "error" frame containing wantSubstr, immediately

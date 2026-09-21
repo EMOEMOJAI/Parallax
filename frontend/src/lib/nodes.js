@@ -15,12 +15,12 @@ export function applyNodeStatus(nodes, data) {
   if (existing) {
     // Update online status and any metadata the server sent
     const updated = { ...existing, online: data.online }
-    if (data.name) updated.name = data.name
-    if (data.location) updated.location = data.location
-    if (data.flag) updated.flag = data.flag
+    if (data.name !== undefined) updated.name = data.name
+    if (data.location !== undefined) updated.location = data.location
+    if (data.flag !== undefined) updated.flag = data.flag
     if (data.ipv4 !== undefined) updated.ipv4 = data.ipv4
     if (data.ipv6 !== undefined) updated.ipv6 = data.ipv6
-    if (data.provider) updated.provider = data.provider
+    if (data.provider !== undefined) updated.provider = data.provider
     if (data.lat !== undefined) updated.lat = data.lat
     if (data.lon !== undefined) updated.lon = data.lon
     // Agent capabilities. An *online* frame always projects the node's
