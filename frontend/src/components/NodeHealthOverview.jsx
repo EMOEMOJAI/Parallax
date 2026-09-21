@@ -1,3 +1,5 @@
+import FleetReadiness from './FleetReadiness'
+import AgentVersion from './AgentVersion'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Activity, Cpu, HardDrive, Clock, Wifi, WifiOff, RefreshCw } from 'lucide-react'
 import { useFocusTrap } from '../hooks/useFocusTrap'
@@ -6,6 +8,7 @@ import { apiFetch } from '../lib/api'
 
 export default function NodeHealthOverview({ visible, onClose }) {
   const [nodes, setNodes] = useState([])
+  const [error, setError] = useState('')
   // Spin the refresh control for both manual refresh and periodic polling.
   const [refreshing, setRefreshing] = useState(false)
   const dialogRef = useRef(null)
@@ -20,9 +23,9 @@ export default function NodeHealthOverview({ visible, onClose }) {
       const res = await apiFetch('/api/nodes/health', { signal: controller.signal })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
-      if (requestRef.current === controller && !controller.signal.aborted) setNodes(data || [])
+      if (requestRef.current === controller && !controller.signal.aborted) { setNodes(data || []); setError('') }
     } catch (err) {
-      if (!controller.signal.aborted) console.error('Failed to fetch node health:', err)
+      if (!controller.signal.aborted) setError('Couldn’t refresh node health. Displayed data may be stale; try Refresh node health.')
     } finally {
       if (requestRef.current === controller) {
         requestRef.current = null
@@ -85,8 +88,10 @@ export default function NodeHealthOverview({ visible, onClose }) {
 
         {/* Node list */}
         <div className="flex-1 overflow-y-auto p-4">
+          {error && <p role="alert" className="text-sm text-warning mb-3">{error}</p>}
+          {nodes.length > 0 && <FleetReadiness nodes={nodes} />}
           {nodes.length === 0 ? (
-            <div className="text-center py-12 text-text-muted text-sm">No nodes registered</div>
+            <div className="text-center py-12 text-text-muted text-sm">{refreshing ? 'Loading node health…' : error ? 'Node health unavailable' : 'No nodes registered'}</div>
           ) : (
             <div className="grid gap-3">
               {nodes.map((node) => (
@@ -105,7 +110,7 @@ function NodeCard({ node }) {
   const h = node.health
 
   return (
-    <div className={`rounded-xl border p-4 transition-colors duration-200
+    <div data-testid="node-health-card" className={`rounded-xl border p-4 transition-colors duration-200
       ${node.online
         ? 'border-border/40 bg-bg-secondary/40'
         : 'border-danger/20 bg-danger/5'}`}>
@@ -117,7 +122,8 @@ function NodeCard({ node }) {
           {/* Agent build identity, so a node still running an old binary is
               visible here. Always rendered — "unknown" is itself the signal. */}
           <div className="text-[11px] text-text-muted font-mono" title="Agent version">
-            agent {node.version || 'unknown'}
+            <span className="sr-only">Agent version </span>
+            <AgentVersion version={node.version} />
           </div>
         </div>
         <div className="flex items-center gap-1.5">

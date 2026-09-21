@@ -5,10 +5,12 @@ import { applyNodeStatus, rememberNodeStatus, reconcileNodeSnapshot } from '../l
 export function useNodes(wsSubscribe, wsConnected, authKey = '', authRevision = 0) {
   const [nodes, setNodes] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const pendingRef = useRef(null)
 
   const fetchNodes = useCallback(async () => {
     pendingRef.current?.controller.abort()
+    setLoading(true)
     const request = { controller: new AbortController(), updates: new Map() }
     pendingRef.current = request
     try {
@@ -16,11 +18,15 @@ export function useNodes(wsSubscribe, wsConnected, authKey = '', authRevision = 
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const snapshot = await res.json()
       if (pendingRef.current !== request || request.controller.signal.aborted) return
+      if (!Array.isArray(snapshot)) throw new Error('Invalid node list')
+      setError(null)
       // The HTTP snapshot may predate frames already delivered by the socket.
       // Replay those frames so a slow response cannot undo newer node state.
       setNodes(reconcileNodeSnapshot(snapshot, request.updates))
     } catch (err) {
-      if (!request.controller.signal.aborted) console.error('Failed to fetch nodes:', err)
+      if (pendingRef.current === request && !request.controller.signal.aborted) {
+        setError('Couldn’t load agents')
+      }
     } finally {
       if (pendingRef.current === request) {
         pendingRef.current = null
@@ -48,5 +54,5 @@ export function useNodes(wsSubscribe, wsConnected, authKey = '', authRevision = 
     })
   }, [wsSubscribe])
 
-  return { nodes, loading, refetch: fetchNodes }
+  return { nodes, loading, error, refetch: fetchNodes }
 }

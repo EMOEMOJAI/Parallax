@@ -1,4 +1,5 @@
 import { commandSucceeded } from '../lib/commandResult'
+import { comparisonCsv, downloadFile, resultDocument } from '../lib/resultExport'
 import { randomId } from '../lib/id'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Columns3, Play, Square, Globe, X } from 'lucide-react'
@@ -29,7 +30,7 @@ const MAX_LINES_PER_NODE = 2000
 // 100-packet pings and long traces must not be cancelled after just a minute.
 const NODE_TIMEOUT_MS = 10 * 60_000 + 15_000
 
-export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allowedCommands = null, allowedTargets = null }) {
+export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allowedCommands = null, allowedTargets = null, onCollect }) {
   const [selectedNodes, setSelectedNodes] = useState([])
   const [command, setCommand] = useState('ping')
   const visibleCommands = allowedCommands === null ? COMMANDS : COMMANDS.filter((c) => allowedCommands.includes(c.id))
@@ -54,6 +55,8 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
       return next.length === previous.length ? previous : next
     })
   }, [nodes, running])
+  const [runMeta, setRunMeta] = useState(null)
+  const completedResults = useRef({})
   const [results, setResults] = useState({}) // nodeId -> lines[]
   const [summaries, setSummaries] = useState({}) // nodeId -> parsed summary
   const cmdIds = useRef({})
@@ -64,6 +67,26 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
   // the agent never sends a `done` (e.g., agent crashed mid-command).
   const cmdStartTimes = useRef({})
   const commandErrors = useRef(new Set())
+  const pendingLines = useRef({})
+  const flushScheduled = useRef(false)
+  const flushFrame = useRef(null)
+  const discardPending = useCallback(() => {
+    if (flushFrame.current !== null) cancelAnimationFrame(flushFrame.current)
+    flushFrame.current = null
+    pendingLines.current = {}
+    flushScheduled.current = false
+  }, [])
+  const flushPending = useCallback(() => {
+    const batch = pendingLines.current
+    discardPending()
+    setResults((previous) => {
+      const next = { ...previous }
+      for (const [nodeId, lines] of Object.entries(batch)) {
+        next[nodeId] = [...(previous[nodeId] || []), ...lines].slice(-MAX_LINES_PER_NODE)
+      }
+      return next
+    })
+  }, [discardPending])
   const dialogRef = useRef(null)
   useFocusTrap(dialogRef, visible)
   const toggleNode = (id) => {
@@ -81,12 +104,11 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
       cmdIds.current = {}
       cmdToNode.current = {}
       cmdStartTimes.current = {}
-      pendingLines.current = {}
-      flushScheduled.current = false
+      flushPending()
       setRunning(false)
     }
     onClose()
-  }, [running, wsRef, onClose])
+  }, [running, wsRef, onClose, flushPending])
 
   // Cancel running commands when modal is hidden (e.g., Escape key)
   useEffect(() => {
@@ -97,11 +119,10 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
       cmdIds.current = {}
       cmdToNode.current = {}
       cmdStartTimes.current = {}
-      pendingLines.current = {}
-      flushScheduled.current = false
+      flushPending()
       setRunning(false)
     }
-  }, [visible, running, wsRef])
+  }, [visible, running, wsRef, flushPending])
 
   // Reset running state on disconnect so UI doesn't get stuck
   const prevConnected = useRef(wsRef?.connected)
@@ -110,12 +131,11 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
       cmdIds.current = {}
       cmdToNode.current = {}
       cmdStartTimes.current = {}
-      pendingLines.current = {}
-      flushScheduled.current = false
+      flushPending()
       setRunning(false)
     }
     prevConnected.current = wsRef?.connected
-  }, [wsRef?.connected, running])
+  }, [wsRef?.connected, running, flushPending])
 
   // Ensure running commands are cancelled if component unmounts
   // Capture wsRef at mount time to avoid stale reference in cleanup
@@ -133,14 +153,11 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
       cmdIds.current = {}
       cmdToNode.current = {}
       cmdStartTimes.current = {}
-      pendingLines.current = {}
-      flushScheduled.current = false
+      discardPending()
     }
-  }, [])
+  }, [discardPending])
 
   // Listen for results — batch output lines to reduce re-renders
-  const pendingLines = useRef({})
-  const flushScheduled = useRef(false)
 
   useEffect(() => {
     if (!wsRef?.subscribe) return
@@ -162,26 +179,14 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
         if (pendingLines.current[nodeId].length > MAX_LINES_PER_NODE) pendingLines.current[nodeId].splice(0, pendingLines.current[nodeId].length - MAX_LINES_PER_NODE)
         if (!flushScheduled.current) {
           flushScheduled.current = true
-          requestAnimationFrame(() => {
-            flushScheduled.current = false
-            const batch = { ...pendingLines.current }
-            pendingLines.current = {}
-            setResults((prev) => {
-              const next = { ...prev }
-              for (const [nid, lines] of Object.entries(batch)) {
-                const existing = next[nid] || []
-                const updated = [...existing, ...lines]
-                next[nid] = updated.length > MAX_LINES_PER_NODE ? updated.slice(-MAX_LINES_PER_NODE) : updated
-              }
-              return next
-            })
-          })
+          flushFrame.current = requestAnimationFrame(flushPending)
         }
       } else if (data.type === 'summary') {
         const parsed = parseSummary(data.data)
         if (parsed) setSummaries((prev) => ({ ...prev, [nodeId]: parsed }))
       }
       if (data.type === 'done') {
+        completedResults.current[nodeId] = succeeded
         commandErrors.current.delete(data.id)
         const cmdId = cmdIds.current[nodeId]
         delete cmdIds.current[nodeId]
@@ -190,7 +195,7 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
         if (Object.keys(cmdIds.current).length === 0) setRunning(false)
       }
     })
-  }, [wsRef])
+  }, [wsRef, flushPending])
 
   const handleRun = useCallback(() => {
     if (!target.trim() || selectedNodes.length === 0 || commandDisallowed || targetDisallowed) return
@@ -198,11 +203,11 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
     if (running) return
     setRunning(true)
     commandErrors.current.clear()
+    completedResults.current = {}
     cmdIds.current = {}
     cmdToNode.current = {}
     cmdStartTimes.current = {}
-    pendingLines.current = {}
-    flushScheduled.current = false
+    discardPending()
 
     // Initialize all results at once instead of N separate state updates
     const initial = Object.fromEntries(selectedNodes.map(id => [id, []]))
@@ -213,6 +218,12 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
     const options = encodeOptions(command, optValues[command], ipVersion)
 
     const now = Date.now()
+    setRunMeta({ command, target: target.trim(), options, startedAt: new Date(now).toISOString(),
+      nodes: selectedNodes.map((id) => {
+        const node = nodes.find((item) => item.id === id)
+        return { id, name: node?.name || id, location: node?.location || '' }
+      }),
+    })
     selectedNodes.forEach((nodeId) => {
       const cmdId = randomId()
       cmdIds.current[nodeId] = cmdId
@@ -223,7 +234,7 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
         command: { id: cmdId, type: command, target: target.trim(), options }
       })
     })
-  }, [selectedNodes, command, target, wsRef, running, optValues, ipVersion, commandDisallowed, targetDisallowed])
+  }, [selectedNodes, command, target, wsRef, running, optValues, ipVersion, commandDisallowed, targetDisallowed, nodes, discardPending])
 
   // Watchdog: time out per-node commands that never produce a `done` message.
   useEffect(() => {
@@ -236,6 +247,7 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
       }
       if (expired.length === 0) return
 
+      if (expired.length) flushPending()
       expired.forEach((nodeId) => {
         const cmdId = cmdIds.current[nodeId]
         if (cmdId && wsRef?.send) {
@@ -256,7 +268,7 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
       if (Object.keys(cmdIds.current).length === 0) setRunning(false)
     }, 5_000)
     return () => clearInterval(interval)
-  }, [running, wsRef])
+  }, [running, wsRef, flushPending])
 
   const handleStop = () => {
     Object.entries(cmdIds.current).forEach(([nodeId, cmdId]) => {
@@ -265,8 +277,8 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
     setRunning(false)
     cmdIds.current = {}
     cmdToNode.current = {}
-    pendingLines.current = {}
-    flushScheduled.current = false
+    cmdStartTimes.current = {}
+    flushPending()
   }
 
   // Stay mounted through the close transition so the modal can animate out.
@@ -315,11 +327,22 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border/30">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-6 py-4 border-b border-border/30">
           <div className="flex items-center gap-2">
             <Columns3 size={16} className="text-accent-text" />
             <span className="text-sm font-semibold text-text-primary">Multi-Node Comparison</span>
           </div>
+          {runMeta && onCollect && <button disabled={running || flushScheduled.current} onClick={() => onCollect(runMeta.nodes.map((node) => resultDocument({
+            command: runMeta.command, target: runMeta.target, options: runMeta.options, startedAt: runMeta.startedAt,
+            nodeName: node.name, nodeLocation: node.location,
+          }, [...(results[node.id] || []), {
+            type: completedResults.current[node.id] === true ? 'success' : 'error',
+            text: completedResults.current[node.id] === undefined ? 'Result incomplete: this comparison was stopped or disconnected before completion.'
+              : completedResults.current[node.id] ? 'Comparison check completed.' : 'Comparison check failed.',
+          }], summaries[node.id] || null)))}
+            className="min-h-11 rounded-lg border border-border-hover px-3 text-xs text-text-primary disabled:opacity-40">Add comparison to incident</button>}
+          {runMeta && <button disabled={running || flushScheduled.current} onClick={() => downloadFile(comparisonCsv(runMeta, results, summaries), 'text/csv;charset=utf-8', 'parallax-comparison.csv')}
+            className="ml-auto mr-2 min-h-11 rounded-lg px-3 text-xs text-text-muted hover:text-text-primary disabled:opacity-40 cursor-pointer">Download CSV</button>}
           <button onClick={handleClose}
             className="text-xs text-text-muted hover:text-text-primary px-2 py-1 rounded-lg hover:bg-hover-overlay transition-colors cursor-pointer">
             Close
@@ -502,16 +525,16 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
           ) : (
             <div className={`grid gap-3 ${
               selectedNodes.length === 1 ? 'grid-cols-1' :
-              selectedNodes.length === 2 ? 'grid-cols-2' :
-              selectedNodes.length === 3 ? 'grid-cols-2 lg:grid-cols-3' :
-              selectedNodes.length === 4 ? 'grid-cols-2 lg:grid-cols-4' :
-              'grid-cols-2 lg:grid-cols-3'
+              selectedNodes.length === 2 ? 'grid-cols-1 sm:grid-cols-2' :
+              selectedNodes.length === 3 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' :
+              selectedNodes.length === 4 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4' :
+              'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
             }`}>
               {selectedNodes.map((nodeId) => {
                 const node = nodes.find((n) => n.id === nodeId)
                 const lines = results[nodeId] || []
                 return (
-                  <div key={nodeId} className="rounded-xl border border-border/40 bg-bg-secondary/30 overflow-hidden flex flex-col">
+                  <div key={nodeId} data-testid="comparison-result" className="min-w-0 rounded-xl border border-border/40 bg-bg-secondary/30 overflow-hidden flex flex-col">
                     <div className="px-3 py-2 border-b border-border/30 bg-bg-secondary/40 flex items-center gap-2">
                       <span className="text-sm">{node?.flag}</span>
                       <span className="text-xs font-medium text-text-primary">{node?.name}</span>
@@ -527,9 +550,9 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
                       ) : (
                         lines.map((line, i) => (
                           <div key={line._id || i} className={
-                            line.type === 'error' ? 'text-danger' :
-                            line.type === 'success' ? 'text-success' :
-                            'text-text-secondary'
+                            line.type === 'error' ? 'text-danger break-all whitespace-pre-wrap' :
+                            line.type === 'success' ? 'text-success break-all whitespace-pre-wrap' :
+                            'text-text-secondary break-all whitespace-pre-wrap'
                           }>
                             {line.text}
                           </div>

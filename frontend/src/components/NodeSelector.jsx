@@ -7,10 +7,11 @@ import { useDropdown } from '../hooks/useDropdown'
 // enough to scan visually and a search box is just chrome.
 const SEARCH_THRESHOLD = 6
 
-export default function NodeSelector({ nodes, selectedNode, onSelect, compact, loading }) {
+export default function NodeSelector({ nodes, selectedNode, onSelect, compact, loading, error, onRetry }) {
   const { ref, open, setOpen, mounted, state } = useDropdown()
   const [query, setQuery] = useState('')
   const searchRef = useRef(null)
+  const optionRefs = useRef([])
 
   const selected = nodes.find((n) => n.id === selectedNode)
 
@@ -29,20 +30,30 @@ export default function NodeSelector({ nodes, selectedNode, onSelect, compact, l
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return nodes
     return nodes.filter((n) =>
+      !q ||
       (n.name || '').toLowerCase().includes(q) ||
       (n.location || '').toLowerCase().includes(q) ||
       (n.provider || '').toLowerCase().includes(q)
-    )
+    ).sort((a, b) => Number(b.online) - Number(a.online))
   }, [nodes, query])
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && filtered.length > 0) {
-      // Pick the first match on Enter so the user doesn't have to click.
+  const focusOption = (index) => {
+    if (filtered.length === 0) return
+    const next = (index + filtered.length) % filtered.length
+    optionRefs.current[next]?.focus()
+  }
+
+  const handleKeyDown = (e, index = -1) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      focusOption(index < 0 ? (e.key === 'ArrowDown' ? 0 : filtered.length - 1) : index + (e.key === 'ArrowDown' ? 1 : -1))
+    } else if (index >= 0 && (e.key === 'Home' || e.key === 'End')) {
+      e.preventDefault()
+      focusOption(e.key === 'Home' ? 0 : filtered.length - 1)
+    } else if (e.key === 'Enter' && index < 0 && filtered.length > 0) {
+      e.preventDefault()
       onSelect(filtered[0].id)
-      setOpen(false)
-    } else if (e.key === 'Escape') {
       setOpen(false)
     }
   }
@@ -51,10 +62,20 @@ export default function NodeSelector({ nodes, selectedNode, onSelect, compact, l
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault()
+            setOpen(true)
+            requestAnimationFrame(() => {
+              if (nodes.length > SEARCH_THRESHOLD) searchRef.current?.focus()
+              else focusOption(e.key === 'ArrowDown' ? 0 : filtered.length - 1)
+            })
+          }
+        }}
         aria-expanded={open}
         aria-label={selected ? `Selected node: ${selected.name} at ${selected.location}` : 'Select a node'}
         className={`flex items-center gap-2.5 rounded-xl
-          bg-bg-secondary/30 backdrop-blur-sm border border-border/40
+          min-h-11 bg-bg-secondary/30 backdrop-blur-sm border border-border/40
           hover:border-border-hover hover:bg-bg-secondary/50
           transition-colors duration-200 text-left cursor-pointer
           ${compact ? 'px-3 py-2' : 'px-4 py-3 w-full'}`}
@@ -96,12 +117,14 @@ export default function NodeSelector({ nodes, selectedNode, onSelect, compact, l
           inert={state === 'closing'}
           aria-hidden={state === 'closing'}
           data-origin="top-left"
-          className={`t-dropdown ${motionStateClass(state)} absolute z-50 top-full left-0 mt-2 min-w-[280px] rounded-xl
+          className={`t-dropdown ${motionStateClass(state)} absolute z-50 top-full left-0 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl
           bg-bg-elevated border border-border/60 backdrop-blur-md
           shadow-xl shadow-black/40 overflow-hidden`}>
           {nodes.length === 0 ? (
             <div className="px-4 py-6 text-center text-sm text-text-muted">
-              No nodes available
+              <span>{loading ? 'Loading agents…' : error ? 'Couldn’t load agents' : 'No agents connected'}</span>
+              {!loading && !error && <p className="mt-2 text-xs">Connect an agent to start running diagnostics.</p>}
+              {!loading && onRetry && <button onClick={onRetry} className="mt-3 min-h-11 rounded-lg border border-border/40 px-4 text-text-primary cursor-pointer">Retry</button>}
             </div>
           ) : (
             <>
@@ -113,7 +136,7 @@ export default function NodeSelector({ nodes, selectedNode, onSelect, compact, l
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    onKeyDown={handleKeyDown}
+                    onKeyDown={(e) => handleKeyDown(e)}
                     placeholder="Search nodes..."
                     aria-label="Search nodes"
                     className="flex-1 bg-transparent text-xs text-text-primary
@@ -130,29 +153,37 @@ export default function NodeSelector({ nodes, selectedNode, onSelect, compact, l
                     No matches
                   </div>
                 ) : (
-                  filtered.map((node) => (
-                    <button
-                      key={node.id}
-                      onClick={() => { onSelect(node.id); setOpen(false) }}
-                      className={`flex items-center gap-3 w-full px-4 py-3 text-left
-                        hover:bg-hover-overlay transition-colors duration-150 cursor-pointer
-                        ${node.id === selectedNode ? 'bg-accent/10' : ''}`}
-                    >
-                      <span className="text-lg">{node.flag}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-text-primary truncate">
-                          {node.location}
-                        </div>
-                        <div className="text-xs text-text-muted truncate">
-                          {node.name} · {node.provider}
-                        </div>
-                      </div>
-                      {node.online ? (
-                        <Wifi size={14} className="text-success shrink-0" />
-                      ) : (
-                        <WifiOff size={14} className="text-danger shrink-0" />
+                  filtered.map((node, index) => (
+                    <div key={node.id}>
+                      {(index === 0 || Boolean(filtered[index - 1].online) !== Boolean(node.online)) && (
+                        <div className="px-4 pt-3 pb-1 text-[11px] font-semibold text-text-muted">{node.online ? 'Online' : 'Offline'}</div>
                       )}
-                    </button>
+                      <button
+                        ref={(element) => { optionRefs.current[index] = element }}
+                        onKeyDown={(e) => handleKeyDown(e, index)}
+                        aria-label={`${node.name}, ${node.location}, ${node.online ? 'online' : 'offline'}`}
+                        aria-current={node.id === selectedNode ? 'true' : undefined}
+                        onClick={() => { onSelect(node.id); setOpen(false) }}
+                        className={`flex items-center gap-3 w-full px-4 py-3 text-left
+                          hover:bg-hover-overlay transition-colors duration-150 cursor-pointer
+                          ${node.id === selectedNode ? 'bg-accent/10' : ''}`}
+                      >
+                        <span className="text-lg">{node.flag}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-text-primary truncate">
+                            {node.location}
+                          </div>
+                          <div className="text-xs text-text-muted truncate">
+                            {node.name} · {node.provider}
+                          </div>
+                        </div>
+                        {node.online ? (
+                          <Wifi size={14} className="text-success shrink-0" />
+                        ) : (
+                          <WifiOff size={14} className="text-danger shrink-0" />
+                        )}
+                      </button>
+                    </div>
                   ))
                 )}
               </div>

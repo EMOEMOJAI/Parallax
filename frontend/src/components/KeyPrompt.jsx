@@ -9,17 +9,21 @@ import { motionStateClass, useMountTransition } from '../hooks/useMountTransitio
  * closes the socket with 4401 (the `lg:auth-required` event, handled in App).
  *
  * The key is never rendered back after saving and is not logged; it lives in
- * localStorage under `lg-client-key` and in App state for this tab.
+ * browser storage under `lg-client-key` and in App state for this tab.
  */
 export default function KeyPrompt({ visible, onSave, invalid }) {
   const [value, setValue] = useState('')
+  const [remember, setRemember] = useState(false)
   const dialogRef = useRef(null)
   useFocusTrap(dialogRef, visible)
 
   // Clear the field whenever the prompt re-opens so a rejected key isn't
   // silently resubmitted.
   useEffect(() => {
-    if (visible) setValue('')
+    if (visible) {
+      setValue('')
+      setRemember(false)
+    }
   }, [visible])
 
   // Stay mounted through the close transition so the modal can animate out.
@@ -30,7 +34,7 @@ export default function KeyPrompt({ visible, onSave, invalid }) {
     e.preventDefault()
     const key = value.trim()
     if (!key) return
-    onSave(key)
+    onSave(key, remember)
   }
 
   return (
@@ -53,8 +57,8 @@ export default function KeyPrompt({ visible, onSave, invalid }) {
             <KeyRound size={15} className="text-accent-text" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-text-primary">API key required</h2>
-            <p className="text-[11px] text-text-muted">This Parallax instance is private.</p>
+            <h2 className="text-sm font-semibold text-text-primary">Connect to Parallax</h2>
+            <p className="text-[11px] text-text-muted">Enter your access key to open this private dashboard.</p>
           </div>
         </div>
 
@@ -77,6 +81,12 @@ export default function KeyPrompt({ visible, onSave, invalid }) {
             focus:outline-none focus:border-accent/60"
         />
 
+        <label className="flex min-h-11 items-center gap-2.5 text-xs text-text-secondary cursor-pointer">
+          <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)}
+            className="h-4 w-4 accent-accent" />
+          Remember this browser
+        </label>
+
         <button
           type="submit"
           disabled={!value.trim()}
@@ -88,9 +98,9 @@ export default function KeyPrompt({ visible, onSave, invalid }) {
         </button>
 
         <p className="text-[11px] text-text-muted">
-          Stored in this browser only (localStorage). Sent as a bearer token on API calls and as the
-          <code className="mx-1 text-text-muted">lg.bearer</code>
-          WebSocket subprotocol.
+          {remember
+            ? 'Stay connected on this browser. Use only on a device you trust.'
+            : 'Your key stays in this tab until you close it. Ask your administrator if you need a key.'}
         </p>
       </form>
     </div>

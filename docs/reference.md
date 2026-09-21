@@ -119,10 +119,58 @@ use the `lg.bearer` subprotocol with the key as the next entry. Precedence for
 browser WebSockets is Authorization header, then subprotocol, then the legacy
 `?key=` fallback. Prefer headers or the subprotocol to avoid credentials in URLs.
 
+The dashboard asks for the client key when required. By default it stores the key
+in this tab's session storage, so reloads stay connected. Select **Remember this
+browser** only on trusted devices to save it across browser sessions. Existing
+saved keys continue to work. If browser storage is unavailable, the key is kept
+in memory for the current visit. **Sign out** forgets the saved key in this browser
+and closes this tab's connections and panels; other already-open tabs may retain
+their active sessions. It does not revoke the server key—rotate `CLIENT_API_KEY`
+to revoke that key for every client.
+
 With `PUBLIC_MODE=1`, visitors without a valid client key receive a restricted
 session. They may read the public inventory and run only allowed commands against
 allowed targets; they cannot open shells or mutate schedules and saved runs.
 When `CLIENT_API_KEY` is unset in public mode, every client session is restricted.
+
+### Dashboard results and sharing
+
+The dashboard remembers the selected node in this browser (`lg-selected-node`)
+and picks an available node if that ID disappears. Storage failures fall back to
+an in-memory selection. Long hexadecimal agent versions are shortened in the
+node details and health views; **Copy full agent version** copies the entire
+reported value. The server preserves version labels up to 128 Unicode characters,
+including full 40- and 64-character Git revisions, on registration and health updates.
+Comparison results stack vertically on narrow screens.
+
+Unavailable shared links show an expiry explanation and **Return to dashboard**.
+Temporary loading failures offer **Try again** without claiming the link expired.
+
+Output search filters displayed lines only; copying, downloading and sharing use
+the full retained output buffer. Pause auto-scroll keeps the view in place while
+results continue to arrive. **Jump to latest** clears the search and resumes
+following output.
+
+Text downloads contain the retained output. JSON downloads also include the
+captured node, command, target, options, run start time (when available), export
+time and structured summary. Kit exports record the executed step sequence in
+`options` and omit an aggregate summary; the final step’s summary is not a summary
+of the whole kit. Clearing a running terminal retains metadata for subsequent output.
+Comparison CSV downloads capture the executed
+command and nodes, even if controls are edited afterward. CSV cells are quoted
+and spreadsheet formula prefixes are neutralized.
+
+Sharing opens a fixed snapshot for review before making a request. Optional
+redaction replaces exact, case-sensitive text in both metadata and output; it is
+not automatic detection of secrets. Control characters that the server would strip
+are removed before redaction and preview. The preview blocks content the server
+would truncate: each line must fit 4 KiB and metadata must fit its field limits.
+The existing 5,000-line / 1 MiB request limits also apply. Use a direct download
+for oversized results. The preview shows the request content.
+Permalinks are readable without authentication by anyone who has the URL, expire
+after 24 hours, and can disappear earlier after a server restart or eviction.
+If clipboard access fails, the created URL remains available for manual copying.
+Searches and redaction do not modify the original diagnostic output.
 
 ### Route access
 
@@ -155,3 +203,55 @@ require HTTPS and are limited to five hops. TLS certificate verification remains
 enabled. Lookups stop when the requesting client disconnects. The free GeoIP
 provider uses HTTP for its initial request, so its location data is advisory and
 not a trusted identity or authorization input.
+
+### Investigations, baselines and incident reports
+
+Open **Investigations** below the terminal to run guided checks, save a baseline,
+or assemble an incident report. This workspace is available to operator sessions;
+public sessions continue to use their configured command and target allowlists.
+
+- **Guided diagnostics:** “Website unreachable” checks DNS A records, TCP port
+  443, the TLS certificate and an HTTPS response. “DNS looks wrong” checks A and
+  AAAA records and runs the resolver benchmark. Enter a hostname without a URL,
+  port or path and choose an online node. Known missing capabilities disable the
+  sequence; older agents with unknown capabilities retain compatibility behavior.
+  Checks run sequentially through the existing authenticated WebSocket. A failed
+  probe does not stop later checks; Stop, disconnect, timeout or the output cap
+  stops the remaining sequence. Closing the Investigations disclosure keeps an
+  active sequence running; use **Stop guided checks** to cancel it. Observations
+  describe evidence, not a definitive root cause. Completed and interrupted
+  check output can be explicitly collected into an incident draft.
+- **Baselines:** save the current terminal result or a collected check for 1, 7
+  or 30 days. These opt-in snapshots include node names, locations, targets,
+  options, summaries and raw output. They use `lg-baselines-v1` in this origin’s
+  browser localStorage, remain after sign out, and are never uploaded. Expired
+  entries are removed when the dashboard next loads, or within a minute while
+  open. Individual deletion and **Clear saved baselines** are available. Browser
+  storage limits or disabled storage are reported; saves are never silently
+  treated as successful. Limits: 10 baselines, 256 KiB per check, 2 MiB total.
+- **Comparison:** node name, location, command, target and options must match.
+  Kits also require matching recorded step sequences; older kit snapshots without
+  a sequence cannot be compared automatically.
+  Available numeric summaries show before/after values and signed changes;
+  packet-loss changes use percentage points. DNS comparison recognizes dig’s
+  answer section and ignores TTL/order differences. Route comparison recognizes
+  numbered hops, including private hops and timeouts, and omits timing noise.
+  Unrecognized formats remain available in raw output. Missing data is not
+  interpreted as zero, and differences do not automatically imply degradation.
+- **Incident reports:** explicitly collect terminal results, guided results or
+  a multi-node comparison, then select checks and add a title and notes. Drafts
+  hold at most 20 checks / 2 MiB in memory and disappear on reload or sign out.
+  **Preview incident report** freezes the selected checks, metadata, timestamps,
+  observations and output. Exact, case-sensitive redaction applies everywhere in
+  this plain-text preview; one replacement value per line. It does not detect
+  secrets automatically. **Download incident report** downloads precisely the
+  reviewed text without contacting the server. Preview again to include draft
+  changes, discard the preview to remove its snapshot, or clear the whole draft.
+  Oversized checks are rejected with guidance to use the terminal’s direct export.
+
+**Node health overview → Agent readiness** counts reported builds, compares full
+version strings with an optional expected tag/commit, and shows availability of
+a chosen diagnostic on each node. Unknown versions and unreported capabilities
+are explicit. A different hash is not labeled older: the dashboard has no release
+ordering information. Missing native probes suggest updating the agent; missing
+external tools suggest installing that tool. No update is triggered from this view.

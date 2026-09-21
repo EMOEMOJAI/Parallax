@@ -50,8 +50,28 @@ cd frontend
 npm ci
 npx playwright install chromium
 npm run build
-npm run test:e2e
+npm run test:e2e -- --project=production --project=source-auth
 ```
+
+Visual regression checks cover login, desktop, mobile, the mobile tools menu,
+mobile output, the share preview, mobile comparisons, unavailable links,
+the investigations workspace and agent readiness.
+Run them from the repository root in the same pinned Linux browser container as
+GitHub CI (the anonymous dependency volume keeps Linux packages off your host):
+
+```sh
+docker run --rm --platform linux/amd64 --ipc=host -v "$PWD:/work" -v /work/frontend/node_modules -w /work/frontend \
+  mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27 \
+  sh -c 'npm ci && npm run build && npm run test:e2e -- --project=visual'
+```
+
+For intentional visual changes, append `--update-snapshots` to the Playwright
+command inside the container, inspect every changed image in
+`frontend/tests/e2e/visual-snapshots/`, and commit the reviewed baselines. CI only
+compares; it never updates baselines. Use synthetic data only, never a live
+deployment or real credentials. Keep the container version aligned with the
+locked Playwright dependency when updating it. Run host and container checks
+sequentially because they share build output and browser reports.
 
 The suite uses synthetic HTTP/WebSocket fixtures against the production bundle;
 authentication race cases also use the Vite source server. Container tests

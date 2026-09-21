@@ -29,10 +29,10 @@ export async function openDashboard(context, options = {}) {
             public_mode: !!options.publicMode,
             allowed_commands: options.commands || [],
             allowed_targets: options.targets || [],
-            auth_required: false,
+            auth_required: !!options.authRequired,
           }
         : path === '/api/nodes' || path === '/api/nodes/health'
-          ? nodes
+          ? (options.nodes || nodes)
           : path === '/api/latency-matrix'
             ? { nodes, latency: {} }
             : []

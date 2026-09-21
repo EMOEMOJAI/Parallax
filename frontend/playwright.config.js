@@ -17,8 +17,22 @@ export default defineConfig({
   projects: [
     {
       name: 'production',
-      testIgnore: '**/auth-source.spec.js',
+      testIgnore: ['**/auth-source.spec.js', '**/visual.spec.js'],
       use: { baseURL: 'http://127.0.0.1:5199' },
+    },
+    {
+      name: 'visual',
+      testMatch: '**/visual.spec.js',
+      snapshotPathTemplate: '{testDir}/visual-snapshots/{arg}{ext}',
+      use: {
+        baseURL: 'http://127.0.0.1:5199',
+        viewport: { width: 1280, height: 900 },
+        deviceScaleFactor: 1,
+        colorScheme: 'dark',
+        reducedMotion: 'reduce',
+        locale: 'en-US',
+        timezoneId: 'UTC',
+      },
     },
     {
       // These two races call the API module directly, so use Vite's module server.

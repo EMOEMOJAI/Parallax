@@ -1,7 +1,11 @@
+import Investigations from './components/Investigations'
+import { useInvestigations } from './hooks/useInvestigations'
+import { resultDocument } from './lib/resultExport'
 import { commandSucceeded } from './lib/commandResult'
 import { randomId } from './lib/id'
 import { useState, useCallback, useEffect, useRef, useMemo, lazy, Suspense } from 'react'
-import { Activity, Grid3x3, Columns3, Map as MapIcon, Clock } from 'lucide-react'
+import { LogOut } from 'lucide-react'
+import DashboardTools from './components/DashboardTools'
 import AmbientBackground from './components/AmbientBackground'
 import NodeSelector from './components/NodeSelector'
 import NodeInfo from './components/NodeInfo'
@@ -20,7 +24,7 @@ import { useWebSocket } from './hooks/useWebSocket'
 import { useCommandHistory } from './hooks/useCommandHistory'
 import { useKits } from './hooks/useKits'
 import { useMountTransition } from './hooks/useMountTransition'
-import { apiFetch, getApiKey, setApiKey, AUTH_REQUIRED_EVENT } from './lib/api'
+import { apiFetch, getApiKey, setApiKey, clearApiKey, AUTH_REQUIRED_EVENT } from './lib/api'
 
 // Heavy panels — Leaflet (~150 KB) and xterm.js (~100 KB) — are only loaded
 // the first time their modal opens, so they don't bloat the initial bundle.
@@ -30,6 +34,17 @@ const ShellTerminal = lazy(() => import('./components/ShellTerminal'))
 const MAX_OUTPUT_LINES = 10000
 
 export default function App() {
+  const [session, setSession] = useState(0)
+  const signOut = useCallback(() => {
+    clearApiKey()
+    // Remount to close sockets and panels, abort requests, and discard displayed
+    // data from the old session before connecting without its credential.
+    setSession((value) => value + 1)
+  }, [])
+  return <Dashboard key={session} onSignOut={signOut} />
+}
+
+function Dashboard({ onSignOut }) {
   // The client key drives both transports: it re-dials /ws/client (as the
   // lg.bearer subprotocol) and rides along on every apiFetch. Keeping it in
   // state — not just localStorage — is what makes saving a key take effect
@@ -41,9 +56,12 @@ export default function App() {
 
   const ws = useWebSocket('/ws/client', authKey, authRevision)
   const { connected, send, subscribe, reconnectAttempt } = ws
-  const { nodes, loading: nodesLoading } = useNodes(subscribe, connected, authKey, authRevision)
+  const { nodes, loading: nodesLoading, error: nodesError, refetch: retryNodes } = useNodes(subscribe, connected, authKey, authRevision)
   const { history, push: pushHistory, navigate: navigateHistory, clear: clearHistory } = useCommandHistory()
-  const [selectedNodeId, setSelectedNodeId] = useState(null)
+  const [selectedNodeId, setSelectedNodeId] = useState(() => {
+    try { return localStorage.getItem('lg-selected-node') || null } catch { return null }
+  })
+  const investigations = useInvestigations()
   const [lines, setLines] = useState([])
   // Structured summary of the run currently in the terminal (S2). Replaced on
   // every dispatch — including each step of a diagnostic kit — so it always
@@ -59,9 +77,12 @@ export default function App() {
   const commandErrorRef = useRef(false)
   const kitFailedRef = useRef(false)
   const lineIdCounter = useRef(0)
+  const [replayError, setReplayError] = useState(null)
+  const [replayAttempt, setReplayAttempt] = useState(0)
   const replayDismissedRef = useRef(false)
   const replayAbortRef = useRef(null)
   const dismissReplay = useCallback(() => {
+    setReplayError(null)
     replayDismissedRef.current = true
     replayAbortRef.current?.abort()
   }, [])
@@ -104,8 +125,8 @@ export default function App() {
     return () => window.removeEventListener(AUTH_REQUIRED_EVENT, onAuthRequired)
   }, [])
 
-  const handleSaveKey = useCallback((key) => {
-    setApiKey(key)
+  const handleSaveKey = useCallback((key, remember) => {
+    setApiKey(key, remember)
     setAuthKey(key)
     // An explicit Connect retries even when the entered key is unchanged.
     setAuthRevision((revision) => revision + 1)
@@ -195,9 +216,14 @@ export default function App() {
     if (!runId || replayDismissedRef.current) return
     const controller = new AbortController()
     replayAbortRef.current = controller
+    setReplayError(null)
     apiFetch(`/api/runs/${encodeURIComponent(runId)}`, { signal: controller.signal })
       .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        if (!r.ok) {
+          const error = new Error(`HTTP ${r.status}`)
+          error.unavailable = [400, 404, 410].includes(r.status)
+          throw error
+        }
         return r.json()
       })
       .then((rec) => {
@@ -212,6 +238,7 @@ export default function App() {
         setLastCommandType(rec.command)
         setSummary(null)
         setRunMeta({
+          sharedAt: rec.created_at || null,
           command: rec.command,
           target: rec.target,
           options: rec.options,
@@ -222,12 +249,13 @@ export default function App() {
       })
       .catch((err) => {
         if (controller.signal.aborted || replayDismissedRef.current) return
-        setLines([
-          { _id: ++lineIdCounter.current, type: 'error', text: `✗ Couldn't load shared run ${runId}: ${err.message}` },
-        ])
+        setLines([])
+        setSummary(null)
+        setRunMeta(null)
+        setReplayError(err.unavailable ? 'unavailable' : 'connection')
       })
     return () => controller.abort()
-  }, [authKey, authRevision])
+  }, [authKey, authRevision, replayAttempt])
 
   // Close modals on Escape (except shell — terminal needs Escape key)
   useEffect(() => {
@@ -245,11 +273,17 @@ export default function App() {
     : [], [running, lastCommandType, lines])
 
   useEffect(() => {
+    if (nodesLoading || nodesError) return
     if ((!selectedNodeId || !nodes.some((n) => n.id === selectedNodeId)) && nodes.length > 0) {
       const online = nodes.find((n) => n.online)
-      if (online) setSelectedNodeId(online.id)
+      setSelectedNodeId((online || nodes[0]).id)
     }
-  }, [nodes, selectedNodeId])
+  }, [nodes, selectedNodeId, nodesLoading, nodesError])
+
+  useEffect(() => {
+    if (nodesLoading || nodesError || !nodes.some((node) => node.id === selectedNodeId)) return
+    try { localStorage.setItem('lg-selected-node', selectedNodeId) } catch { /* memory-only selection */ }
+  }, [nodes, selectedNodeId, nodesLoading, nodesError])
 
   useEffect(() => {
     const unsub = subscribe('app', (data) => {
@@ -302,6 +336,7 @@ export default function App() {
   const captureRunMeta = useCallback((command) => {
     const node = nodes.find((n) => n.id === selectedNodeId)
     setRunMeta({
+      startedAt: new Date().toISOString(),
       command: command.type,
       target: command.target || '',
       options: command.options || '',
@@ -315,6 +350,8 @@ export default function App() {
     (command) => {
       if (!selectedNodeId) return
       if (!connected) {
+        setRunMeta(null)
+        setSummary(null)
         setLines([{ _id: ++lineIdCounter.current, type: 'error', text: '✗ Not connected to server.' }])
         return
       }
@@ -351,7 +388,7 @@ export default function App() {
           { _id: ++lineIdCounter.current, type: 'info', text: `Running on ${selectedNode?.name} (${selectedNode?.location})\n` },
           { _id: ++lineIdCounter.current, type: 'info', text: `── [1/${sequence.length}] ${step.type} ${command.target} ──` },
         ])
-        captureRunMeta({ type: 'kit', target: command.target, options: '' })
+        captureRunMeta({ type: 'kit', target: command.target, options: JSON.stringify(sequence) })
         dispatchCommand({ type: step.type, target: command.target, options: step.options })
         return
       }
@@ -397,69 +434,19 @@ export default function App() {
           <div className="w-px h-6 bg-border/40 shrink-0 hidden sm:block" />
 
           <div className="shrink-0">
-            <NodeSelector nodes={nodes} selectedNode={selectedNodeId} onSelect={setSelectedNodeId} compact loading={nodesLoading} />
+            <NodeSelector nodes={nodes} selectedNode={selectedNodeId} onSelect={setSelectedNodeId} compact loading={nodesLoading} error={nodesError} onRetry={retryNodes} />
           </div>
 
           <div className="flex-1" />
 
-          {/* Feature buttons */}
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setActiveModal('map')}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
-                border transition-colors duration-200 cursor-pointer
-                ${hasTraceData
-                  ? 'bg-cyan/15 border-cyan/40 text-cyan hover:bg-cyan/25'
-                  : 'bg-bg-secondary/30 border-border/30 text-text-muted hover:text-text-primary hover:border-border-hover'}`}
-              title="Network map"
-            >
-              <MapIcon size={13} />
-              <span className="hidden md:inline">Map</span>
-              {hasTraceData && <span className="w-1.5 h-1.5 rounded-full bg-cyan animate-pulse" />}
+          <DashboardTools onSelect={setActiveModal} isPublic={isPublic} hasTraceData={hasTraceData} />
+          {authKey && (
+            <button onClick={onSignOut} title="Forget key and sign out"
+              className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-xs text-text-muted hover:text-text-primary hover:bg-hover-overlay cursor-pointer">
+              <LogOut size={16} />
+              <span>Sign out</span>
             </button>
-            <button
-              onClick={() => setActiveModal('compare')}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
-                bg-bg-secondary/30 border border-border/30 text-text-muted
-                hover:text-text-primary hover:border-border-hover transition-colors duration-200 cursor-pointer"
-              title="Multi-node comparison"
-            >
-              <Columns3 size={13} />
-              <span className="hidden md:inline">Compare</span>
-            </button>
-            <button
-              onClick={() => setActiveModal('health')}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
-                bg-bg-secondary/30 border border-border/30 text-text-muted
-                hover:text-text-primary hover:border-border-hover transition-colors duration-200 cursor-pointer"
-              title="Node health overview"
-            >
-              <Activity size={13} />
-              <span className="hidden md:inline">Health</span>
-            </button>
-            <button
-              onClick={() => setActiveModal('matrix')}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
-                bg-bg-secondary/30 border border-border/30 text-text-muted
-                hover:text-text-primary hover:border-border-hover transition-colors duration-200 cursor-pointer"
-              title="Latency matrix"
-            >
-              <Grid3x3 size={13} />
-              <span className="hidden md:inline">Matrix</span>
-            </button>
-            {!isPublic && (
-              <button
-                onClick={() => setActiveModal('schedules')}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
-                  bg-bg-secondary/30 border border-border/30 text-text-muted
-                  hover:text-text-primary hover:border-border-hover transition-colors duration-200 cursor-pointer"
-                title="Scheduled probes"
-              >
-                <Clock size={13} />
-                <span className="hidden md:inline">Schedules</span>
-              </button>
-            )}
-          </div>
+          )}
 
           <div className="w-px h-6 bg-border/40 shrink-0" />
 
@@ -477,6 +464,16 @@ export default function App() {
       {isPublic && (
         <div className="relative z-30 px-5 py-1.5 bg-warning/10 border-b border-warning/20 text-[11px] text-warning text-center">
           Public read-only mode — limited to {publicConfig.allowed_commands.join(', ') || 'no commands'} against {publicConfig.allowed_targets.length || 0} preset target{publicConfig.allowed_targets.length === 1 ? '' : 's'}.
+        </div>
+      )}
+
+      {nodesError && !keyPromptOpen && (
+        <div role="alert" className="relative flex flex-wrap items-center justify-center gap-3 border-b border-warning/30 bg-warning/10 px-5 py-3 text-sm text-warning">
+          <span>Couldn’t load agents. {nodes.length > 0 ? 'Showing the last known list.' : 'Check your connection and try again.'}</span>
+          <button onClick={retryNodes} disabled={nodesLoading}
+            className="min-h-11 rounded-lg border border-warning/40 px-4 font-medium disabled:opacity-50 cursor-pointer">
+            {nodesLoading ? 'Retrying…' : 'Retry'}
+          </button>
         </div>
       )}
 
@@ -513,14 +510,37 @@ export default function App() {
       <main className="relative z-10 flex-1 max-w-[1400px] mx-auto w-full px-5 py-5">
         <div className="flex flex-col lg:flex-row gap-5 h-full">
           <div className="flex-1 min-w-0">
-            <OutputTerminal
+            {replayError ? (
+              <section aria-labelledby="shared-result-error" className="rounded-2xl border border-border/40 bg-bg-secondary/20 p-8 text-center">
+                <h2 id="shared-result-error" className="text-lg font-semibold text-text-primary">
+                  {replayError === 'unavailable' ? 'Link expired or unavailable' : 'Couldn’t load this shared result'}
+                </h2>
+                <p role="status" className="mt-3 text-sm text-text-muted">
+                  {replayError === 'unavailable'
+                    ? 'Shared results expire after 24 hours and may be removed earlier. Ask the sender for a new link.'
+                    : 'Check your connection and try again.'}
+                </p>
+                <div className="mt-5 flex flex-wrap justify-center gap-3">
+                  {replayError === 'connection' && <button onClick={() => setReplayAttempt((attempt) => attempt + 1)}
+                    className="min-h-11 rounded-lg border border-border/40 px-4 text-sm text-text-primary cursor-pointer">Try again</button>}
+                  <button onClick={() => {
+                    dismissReplay()
+                    const url = new URL(window.location.href)
+                    url.searchParams.delete('run')
+                    window.history.replaceState(null, '', url)
+                  }} className="min-h-11 rounded-lg border border-accent/40 bg-accent/20 px-4 text-sm text-accent-text cursor-pointer">Return to dashboard</button>
+                </div>
+              </section>
+            ) : <OutputTerminal
               lines={lines}
               summary={summary}
               nodeName={runMeta ? (runMeta.nodeName || 'Unknown node') : selectedNode?.name}
-              onClear={() => { dismissReplay(); setLines([]); setSummary(null) }}
+              onClear={() => { dismissReplay(); setLines([]); setSummary(null); if (!running) setRunMeta(null) }}
               runMeta={runMeta}
               canShare={!isPublic}
-            />
+            />}
+            {!isPublic && <Investigations library={investigations} nodes={nodes} ws={ws}
+              current={!running && runMeta && lines.length ? resultDocument(runMeta, lines, summary) : null} />}
           </div>
           <div className="w-full lg:w-72 shrink-0 space-y-3">
             <NodeInfo node={selectedNode} />
@@ -548,7 +568,7 @@ export default function App() {
       <ErrorBoundary resetKey={activeModal} fallback={<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 text-danger text-sm"><button onClick={() => setActiveModal(null)}>Component error. Close panel.</button></div>}>
         <NodeHealthOverview visible={activeModal === 'health'} onClose={() => setActiveModal(null)} />
         <LatencyMatrix canMeasure={!isPublic} visible={activeModal === 'matrix'} onClose={() => setActiveModal(null)} wsRef={ws} />
-        <MultiNodeCompare allowedCommands={isPublic ? publicConfig.allowed_commands : null} allowedTargets={isPublic ? publicConfig.allowed_targets : null} visible={activeModal === 'compare'} onClose={() => setActiveModal(null)} nodes={nodes} wsRef={ws} />
+        <MultiNodeCompare onCollect={isPublic ? null : investigations.addDrafts} allowedCommands={isPublic ? publicConfig.allowed_commands : null} allowedTargets={isPublic ? publicConfig.allowed_targets : null} visible={activeModal === 'compare'} onClose={() => setActiveModal(null)} nodes={nodes} wsRef={ws} />
         <Schedules visible={activeModal === 'schedules'} onClose={() => setActiveModal(null)} nodes={nodes} />
         {/* Lazy-loaded modals: render the chunk only on first open so the
             initial bundle stays small. Suspense fallback is invisible — these

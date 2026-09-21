@@ -73,3 +73,30 @@ test('stale authentication failures cannot reject a new credential', async (t) =
   await current
   assert.deepEqual(events, ['lg:auth-required'])
 })
+
+for (const remember of [false, true]) {
+  test(`credential persistence is ${remember ? 'browser-wide' : 'tab-only'} and clearing removes both copies`, async (t) => {
+    const stores = { localStorage: new Map(), sessionStorage: new Map() }
+    for (const [name, map] of Object.entries(stores)) {
+      const previous = Object.getOwnPropertyDescriptor(globalThis, name)
+      Object.defineProperty(globalThis, name, { configurable: true, value: {
+        getItem: (key) => map.get(key) || null,
+        setItem: (key, value) => map.set(key, value),
+        removeItem: (key) => map.delete(key),
+      } })
+      t.after(() => {
+        if (previous) Object.defineProperty(globalThis, name, previous)
+        else delete globalThis[name]
+      })
+      map.set('lg-client-key', 'stale')
+    }
+    const api = await freshApi()
+    api.setApiKey('new-key', remember)
+    assert.equal(stores.localStorage.get('lg-client-key'), remember ? 'new-key' : undefined)
+    assert.equal(stores.sessionStorage.get('lg-client-key'), remember ? undefined : 'new-key')
+    assert.equal((await freshApi()).getApiKey(), 'new-key')
+    api.clearApiKey()
+    assert.equal(api.getApiKey(), '')
+    assert.equal((await freshApi()).getApiKey(), '')
+  })
+}
