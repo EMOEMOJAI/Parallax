@@ -527,8 +527,8 @@ func run() error {
 		if _, busy := requests[id]; busy {
 			requestsMu.Unlock()
 			cancel()
-			sendOutput(conn, id, "error", "A command with this id is already running on this node.")
-			sendOutput(conn, id, "done", doneData(false))
+			// A terminal response here would retire the still-running request.
+			// Match the server: silently ignore duplicate active IDs.
 			return
 		}
 		requests[id] = request
@@ -656,12 +656,12 @@ func run() error {
 			if err := json.Unmarshal(envelope.Payload, &req); err != nil {
 				continue
 			}
-			if !allowShell {
-				sendOutput(conn, req.ID, "error", "Interactive shell is disabled on this node.")
-				sendOutput(conn, req.ID, "done", "")
-				continue
-			}
 			startRequest(req.ID, func(ctx context.Context) {
+				if !allowShell {
+					sendRequestOutput(ctx, conn, req.ID, "error", "Interactive shell is disabled on this node.")
+					sendRequestOutput(ctx, conn, req.ID, "done", doneData(false))
+					return
+				}
 				startShellSessionSize(req.ID, req.Cols, req.Rows, func(id, typ, data string) {
 					sendRequestOutput(ctx, conn, id, typ, data)
 				}, ctx.Done())
