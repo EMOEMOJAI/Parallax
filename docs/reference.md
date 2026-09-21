@@ -26,7 +26,9 @@ node. `tcp`, `tls` and `download` enforce the agent's private-address policy on 
 resolvers in `/etc/resolv.conf` are usually private, and benchmarking them is the point — so it will
 query a private resolver whether or not that variable is set.
 DNS benchmarks send queries directly to each selected resolver; `/etc/hosts` entries do not
-substitute for a DNS response.
+substitute for a DNS response. If the agent cannot enumerate its local network interfaces,
+`tcp`, `tls` and `download` refuse target connections until a later refresh succeeds,
+unless `PROBE_ALLOW_PRIVATE=1` explicitly allows local targets.
 
 ### Not command types, but related features
 

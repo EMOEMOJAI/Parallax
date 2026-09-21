@@ -63,3 +63,32 @@ func TestAddressPolicyHelpersCanonicalizeZones(t *testing.T) {
 		t.Fatal("zoned site-local address was not classified as private")
 	}
 }
+
+func TestLocalPrefixEnumerationFailureBlocksUntilRecovery(t *testing.T) {
+	s7Seams(t)
+	probeAllowPrivate.Store(false)
+	prefix := netip.MustParsePrefix("2606:4700:1234::/64")
+	storeLocalPrefixes([]netip.Prefix{prefix})
+	localPrefixSource = func() ([]netip.Prefix, error) {
+		return nil, errors.New("interface enumeration failed")
+	}
+	refreshLocalPrefixes()
+	for _, target := range []string{"2606:4700:1234::1", s7PublicLiteral} {
+		if _, err := resolveAndCheck(context.Background(), target); !errors.Is(err, errBlockedAddress) {
+			t.Errorf("failed enumeration admitted %s: %v", target, err)
+		}
+		if err := probeDialControl("tcp", net.JoinHostPort(target, "443"), nil); !errors.Is(err, errBlockedAddress) {
+			t.Errorf("socket policy admitted %s: %v", target, err)
+		}
+	}
+	probeAllowPrivate.Store(true)
+	if isBlockedAddr(netip.MustParseAddr(s7PublicLiteral)) || !isBlockedAddr(netip.MustParseAddr("2001:db8::1")) {
+		t.Fatal("explicit private override must preserve the never-allowed policy")
+	}
+	probeAllowPrivate.Store(false)
+	localPrefixSource = func() ([]netip.Prefix, error) { return []netip.Prefix{prefix}, nil }
+	refreshLocalPrefixes()
+	if isBlockedAddr(netip.MustParseAddr(s7PublicLiteral)) || !isBlockedAddr(prefix.Addr()) {
+		t.Fatal("successful refresh did not restore the current on-link boundary")
+	}
+}
