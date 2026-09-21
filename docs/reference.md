@@ -221,7 +221,11 @@ public sessions continue to use their configured command and target allowlists.
   active sequence running; use **Stop guided checks** to cancel it. Observations
   describe evidence, not a definitive root cause. Completed and interrupted
   check output can be explicitly collected into an incident draft.
-- **Baselines:** save the current terminal result or a collected check for 1, 7
+- Successful guided observations show available DNS answer counts and query time,
+  TCP connection time, and TLS trust and days until expiry. Failed or interrupted
+  checks retain their failure observation even if an earlier summary was received.
+- **Baselines:** save a guided check directly with its **Save baseline** button,
+  or save the current terminal result or a collected check, for 1, 7
   or 30 days. These opt-in snapshots include node names, locations, targets,
   options, summaries and raw output. They use `lg-baselines-v1` in this origin’s
   browser localStorage, remain after sign out, and are never uploaded. Expired
@@ -248,6 +252,13 @@ public sessions continue to use their configured command and target allowlists.
   reviewed text without contacting the server. Preview again to include draft
   changes, discard the preview to remove its snapshot, or clear the whole draft.
   Oversized checks are rejected with guidance to use the terminal’s direct export.
+  Select **Include this comparison in incident report** beside a compatible
+  baseline comparison to include its metric/record changes and both runs’ metadata,
+  timestamps, summaries and raw output. A comparison can be exported on its own,
+  without collecting incident checks. The next preview captures the currently
+  selected compatible pair; changing results or deleting a baseline does not alter
+  an existing frozen preview. Comparison evidence uses the same redaction and
+  download flow as the rest of the report.
 
 **Node health overview → Agent readiness** counts reported builds, compares full
 version strings with an optional expected tag/commit, and shows availability of
