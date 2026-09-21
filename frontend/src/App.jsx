@@ -73,9 +73,12 @@ function Dashboard({ onSignOut }) {
   const commandErrorRef = useRef(false)
   const kitFailedRef = useRef(false)
   const lineIdCounter = useRef(0)
+  const [replayError, setReplayError] = useState(null)
+  const [replayAttempt, setReplayAttempt] = useState(0)
   const replayDismissedRef = useRef(false)
   const replayAbortRef = useRef(null)
   const dismissReplay = useCallback(() => {
+    setReplayError(null)
     replayDismissedRef.current = true
     replayAbortRef.current?.abort()
   }, [])
@@ -209,9 +212,14 @@ function Dashboard({ onSignOut }) {
     if (!runId || replayDismissedRef.current) return
     const controller = new AbortController()
     replayAbortRef.current = controller
+    setReplayError(null)
     apiFetch(`/api/runs/${encodeURIComponent(runId)}`, { signal: controller.signal })
       .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        if (!r.ok) {
+          const error = new Error(`HTTP ${r.status}`)
+          error.unavailable = [400, 404, 410].includes(r.status)
+          throw error
+        }
         return r.json()
       })
       .then((rec) => {
@@ -237,12 +245,13 @@ function Dashboard({ onSignOut }) {
       })
       .catch((err) => {
         if (controller.signal.aborted || replayDismissedRef.current) return
-        setLines([
-          { _id: ++lineIdCounter.current, type: 'error', text: `✗ Couldn't load shared run ${runId}: ${err.message}` },
-        ])
+        setLines([])
+        setSummary(null)
+        setRunMeta(null)
+        setReplayError(err.unavailable ? 'unavailable' : 'connection')
       })
     return () => controller.abort()
-  }, [authKey, authRevision])
+  }, [authKey, authRevision, replayAttempt])
 
   // Close modals on Escape (except shell — terminal needs Escape key)
   useEffect(() => {
@@ -497,14 +506,35 @@ function Dashboard({ onSignOut }) {
       <main className="relative z-10 flex-1 max-w-[1400px] mx-auto w-full px-5 py-5">
         <div className="flex flex-col lg:flex-row gap-5 h-full">
           <div className="flex-1 min-w-0">
-            <OutputTerminal
+            {replayError ? (
+              <section aria-labelledby="shared-result-error" className="rounded-2xl border border-border/40 bg-bg-secondary/20 p-8 text-center">
+                <h2 id="shared-result-error" className="text-lg font-semibold text-text-primary">
+                  {replayError === 'unavailable' ? 'Link expired or unavailable' : 'Couldn’t load this shared result'}
+                </h2>
+                <p role="status" className="mt-3 text-sm text-text-muted">
+                  {replayError === 'unavailable'
+                    ? 'Shared results expire after 24 hours and may be removed earlier. Ask the sender for a new link.'
+                    : 'Check your connection and try again.'}
+                </p>
+                <div className="mt-5 flex flex-wrap justify-center gap-3">
+                  {replayError === 'connection' && <button onClick={() => setReplayAttempt((attempt) => attempt + 1)}
+                    className="min-h-11 rounded-lg border border-border/40 px-4 text-sm text-text-primary cursor-pointer">Try again</button>}
+                  <button onClick={() => {
+                    dismissReplay()
+                    const url = new URL(window.location.href)
+                    url.searchParams.delete('run')
+                    window.history.replaceState(null, '', url)
+                  }} className="min-h-11 rounded-lg border border-accent/40 bg-accent/20 px-4 text-sm text-accent-text cursor-pointer">Return to dashboard</button>
+                </div>
+              </section>
+            ) : <OutputTerminal
               lines={lines}
               summary={summary}
               nodeName={runMeta ? (runMeta.nodeName || 'Unknown node') : selectedNode?.name}
               onClear={() => { dismissReplay(); setLines([]); setSummary(null) }}
               runMeta={runMeta}
               canShare={!isPublic}
-            />
+            />}
           </div>
           <div className="w-full lg:w-72 shrink-0 space-y-3">
             <NodeInfo node={selectedNode} />

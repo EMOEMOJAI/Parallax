@@ -1,3 +1,4 @@
+import AgentVersion from './AgentVersion'
 import React from 'react'
 import { Copy, Check, Server } from 'lucide-react'
 import IconSwap from './IconSwap'
@@ -43,7 +44,7 @@ export default function NodeInfo({ node }) {
           {/* Reported by the agent, stored as an opaque string. An agent from
               before capability reporting sends nothing, hence "unknown". */}
           <span className="text-text-muted">Agent version</span>
-          <div className="font-mono font-medium text-text-primary text-[11px]">{node.version || 'unknown'}</div>
+          <div className="font-medium text-text-primary"><AgentVersion version={node.version} /></div>
         </div>
         <div className="col-span-2">
           <span className="text-text-muted">IPv4</span>

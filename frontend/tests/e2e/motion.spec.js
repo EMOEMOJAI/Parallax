@@ -150,7 +150,7 @@ test('clipboard icons and share notices retain the latest feedback', async ({ co
   await page.getByRole('button', { name: 'Create share link', exact: true }).click()
   await page.getByLabel('Share link', { exact: true }).waitFor()
   await page.getByRole('button', { name: 'Close preview', exact: true }).click()
-  await expect(page.getByRole('status')).toHaveText('Link copied to clipboard')
+  await expect(page.getByRole('status').filter({ hasText: 'Link copied to clipboard' })).toHaveText('Link copied to clipboard')
   await expect(page.locator('.t-toast')).toHaveClass(/is-open/)
   await page.waitForTimeout(2200)
   await share.click()

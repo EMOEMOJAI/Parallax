@@ -1,3 +1,4 @@
+import AgentVersion from './AgentVersion'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Activity, Cpu, HardDrive, Clock, Wifi, WifiOff, RefreshCw } from 'lucide-react'
 import { useFocusTrap } from '../hooks/useFocusTrap'
@@ -117,7 +118,8 @@ function NodeCard({ node }) {
           {/* Agent build identity, so a node still running an old binary is
               visible here. Always rendered — "unknown" is itself the signal. */}
           <div className="text-[11px] text-text-muted font-mono" title="Agent version">
-            agent {node.version || 'unknown'}
+            <span className="sr-only">Agent version </span>
+            <AgentVersion version={node.version} />
           </div>
         </div>
         <div className="flex items-center gap-1.5">

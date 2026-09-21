@@ -323,7 +323,7 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border/30">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-6 py-4 border-b border-border/30">
           <div className="flex items-center gap-2">
             <Columns3 size={16} className="text-accent-text" />
             <span className="text-sm font-semibold text-text-primary">Multi-Node Comparison</span>
@@ -512,16 +512,16 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
           ) : (
             <div className={`grid gap-3 ${
               selectedNodes.length === 1 ? 'grid-cols-1' :
-              selectedNodes.length === 2 ? 'grid-cols-2' :
-              selectedNodes.length === 3 ? 'grid-cols-2 lg:grid-cols-3' :
-              selectedNodes.length === 4 ? 'grid-cols-2 lg:grid-cols-4' :
-              'grid-cols-2 lg:grid-cols-3'
+              selectedNodes.length === 2 ? 'grid-cols-1 sm:grid-cols-2' :
+              selectedNodes.length === 3 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' :
+              selectedNodes.length === 4 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4' :
+              'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
             }`}>
               {selectedNodes.map((nodeId) => {
                 const node = nodes.find((n) => n.id === nodeId)
                 const lines = results[nodeId] || []
                 return (
-                  <div key={nodeId} className="rounded-xl border border-border/40 bg-bg-secondary/30 overflow-hidden flex flex-col">
+                  <div key={nodeId} data-testid="comparison-result" className="min-w-0 rounded-xl border border-border/40 bg-bg-secondary/30 overflow-hidden flex flex-col">
                     <div className="px-3 py-2 border-b border-border/30 bg-bg-secondary/40 flex items-center gap-2">
                       <span className="text-sm">{node?.flag}</span>
                       <span className="text-xs font-medium text-text-primary">{node?.name}</span>
@@ -537,9 +537,9 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
                       ) : (
                         lines.map((line, i) => (
                           <div key={line._id || i} className={
-                            line.type === 'error' ? 'text-danger' :
-                            line.type === 'success' ? 'text-success' :
-                            'text-text-secondary'
+                            line.type === 'error' ? 'text-danger break-all whitespace-pre-wrap' :
+                            line.type === 'success' ? 'text-success break-all whitespace-pre-wrap' :
+                            'text-text-secondary break-all whitespace-pre-wrap'
                           }>
                             {line.text}
                           </div>

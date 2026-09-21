@@ -137,7 +137,12 @@ When `CLIENT_API_KEY` is unset in public mode, every client session is restricte
 
 The dashboard remembers the selected node in this browser (`lg-selected-node`)
 and picks an available node if that ID disappears. Storage failures fall back to
-an in-memory selection.
+an in-memory selection. Long hexadecimal agent versions are shortened in the
+node details and health views; **Copy full agent version** copies the entire
+reported value. Comparison results stack vertically on narrow screens.
+
+Unavailable shared links show an expiry explanation and **Return to dashboard**.
+Temporary loading failures offer **Try again** without claiming the link expired.
 
 Output search filters displayed lines only; copying, downloading and sharing use
 the full retained output buffer. Pause auto-scroll keeps the view in place while
