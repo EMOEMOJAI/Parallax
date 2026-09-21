@@ -50,7 +50,9 @@ def inspect(path, data):
                 pass
         for match in IPV6.finditer(data):
             try:
-                address = ipaddress.ip_address(match.group().split('%', 1)[0])
+                # Dots are needed for mapped IPv4 literals, but a prose full
+                # stop is not part of the address. Keep internal dots intact.
+                address = ipaddress.ip_address(match.group().split('%', 1)[0].rstrip('.'))
                 mapped = getattr(address, 'ipv4_mapped', None)
                 if any(address in network for network in PRIVATE_V6_NETS) or (mapped and any(mapped in network for network in PRIVATE_NETS)):
                     findings.add('private deployment address')

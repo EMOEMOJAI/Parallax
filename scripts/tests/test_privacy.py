@@ -39,6 +39,13 @@ class PrivacyGuardTests(unittest.TestCase):
         rules = (Path(__file__).resolve().parents[2] / '.dockerignore').read_text().splitlines()
         self.assertIn('**/*.env', rules)
 
+    def test_ipv6_in_prose_keeps_private_addresses_detectable(self):
+        for address in ['fd12:3456:789a::1', 'fe80::1', '::ffff:192.168.50.1', '::ffff:c0a8:3201']:
+            with self.subTest(address=address):
+                self.assertIn('private deployment address', privacy.inspect('docs/deployment.md', f'Connect to {address}.'))
+        for address in ['2001:db8::1', '::1', '::ffff:192.0.2.1']:
+            self.assertEqual(privacy.inspect('docs/deployment.md', f'Example: {address}.'), [])
+
 
 class IndexPrivacyTests(unittest.TestCase):
     def test_staged_private_content_survives_worktree_redaction_or_deletion(self):
