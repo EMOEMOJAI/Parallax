@@ -52,11 +52,14 @@ test('route comparison preserves private hops, timeouts and loop positions witho
 test('incident preview redacts all fields literally without introducing HTML or partial overlaps', () => {
   const source = incidentText([run('dns', ['example.com and a+b and <script>'])], 'example.com incident', 'a+b', '2026-01-01T00:00:00Z')
   const preview = redactText(source, 'example.com\nexample\na+b\nNode A')
-  assert.equal(preview.includes('example.com'), false)
-  assert.equal(preview.includes('a+b'), false)
-  assert.equal(preview.includes('Node A'), false)
-  assert.match(preview, /<script>/) // Plain text export; never an HTML document.
-  assert.match(preview, /Started: 2026-01-01/)
+  // Exact report content is the contract, including literal markup as text.
+  assert.equal(preview, [
+    'Parallax incident report', '[redacted] incident', 'Exported: 2026-01-01T00:00:00Z', '[redacted]',
+    '', '--- Check 1 ---', 'Node: [redacted] (Site 1)', 'Started: 2026-01-01T00:00:00Z',
+    'Shared: not a shared replay', 'Command: dns [redacted]', 'Options: (default)',
+    'Observation: The command completed. Review the output for details; completion alone does not prove the service is healthy.',
+    'Summary: null', '', 'Output:', '[redacted] and [redacted] and <script>', '',
+  ].join('\n'))
   assert.match(explainRun(run('tls', [], { chain_ok: false })), /not trusted/)
   assert.match(explainRun(run('dns', [], { answer_count: 0 })), /No answers/)
 })
