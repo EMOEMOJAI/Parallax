@@ -165,7 +165,7 @@ export default function GeoMap({ visible, onClose, nodes, traceHops, state: pare
     // The effect must restart after StrictMode's setup/cleanup replay too.
     // A persistent "already seen" ref would suppress the replacement for an
     // aborted first lookup. Equal route contents keep hopsKey stable.
-    resolveHops(traceHops)
+    resolveHops(hopsKey ? JSON.parse(hopsKey) : [])
   }, [hopsKey, resolveHops])
 
   const allPoints = useMemo(() => {

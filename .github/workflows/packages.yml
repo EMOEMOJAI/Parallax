@@ -39,6 +39,11 @@ jobs:
         working-directory: frontend
       - name: Package binaries and dashboard
         run: python3 scripts/package-release.py
+      - name: Inspect release content and metadata for publication privacy
+        run: |
+          for archive in release-dist/*.tar.gz; do
+            python3 scripts/check-artifact-privacy.py --archive "$archive"
+          done
       - name: Install integration test dependencies
         run: python3 -m pip install --require-hashes -r tests/integration/requirements.txt
       - name: Run the extracted archives on the native CPU

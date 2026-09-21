@@ -38,9 +38,10 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
   const [target, setTarget] = useState('')
   const targetDisallowed = allowedTargets !== null && !allowedTargets.includes(target.trim())
 
+  const firstVisibleCommand = visibleCommands[0]?.id
   useEffect(() => {
-    if (commandDisallowed && visibleCommands.length > 0) setCommand(visibleCommands[0].id)
-  }, [allowedCommands, commandDisallowed])
+    if (commandDisallowed && firstVisibleCommand) setCommand(firstVisibleCommand)
+  }, [firstVisibleCommand, commandDisallowed])
   const [ipVersion, setIpVersion] = useState('Auto')
   // Per-tool option values, keyed by command then option key — same shape as
   // CommandBar, so `count` for ping and `count` for mtr keep their own bounds.

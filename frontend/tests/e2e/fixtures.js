@@ -69,6 +69,7 @@ export async function openDashboard(context, options = {}) {
         throw new Error('blocked')
       }
     }
+    if (opts.nativeSocket) return
     const Native = window.WebSocket
     window.NativeWebSocket = Native
     class Mock {

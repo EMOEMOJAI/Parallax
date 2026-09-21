@@ -63,6 +63,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm audit --audit-level=low
+      - run: npm run lint
       - run: npm test
       - run: npm run build
       - run: npx playwright install --with-deps chromium
@@ -81,6 +82,78 @@ jobs:
           if grep -r 'dangerouslySetInnerHTML' src; then
             exit 1
           fi
+
+  browsers:
+    name: Browser smoke (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [firefox, webkit]
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      BROWSER: ${{ matrix.browser }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps "$BROWSER"
+      - run: npm run build
+      - run: npm run test:e2e -- --project="$BROWSER"
+      - name: Save browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-${{ matrix.browser }}-failures
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7
+
+  fuzz:
+    name: Fuzz (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [backend, agent]
+    defaults:
+      run:
+        working-directory: ${{ matrix.module }}
+    env:
+      FUZZ_TIME: ${{ github.event_name == 'schedule' && '120s' || '10s' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.1'
+          cache-dependency-path: '**/go.sum'
+      - name: Fuzz every parser target with bounded time and parallelism
+        run: |
+          targets=$(go test -list '^Fuzz' . | sed -n '/^Fuzz/p')
+          test -n "$targets"
+          while IFS= read -r target; do
+            go test -run '^$' -fuzz "^${target}$" -fuzztime "$FUZZ_TIME" -parallel 2 -timeout 4m .
+          done <<< "$targets"
+      - name: Preserve synthetic failure corpus
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz-${{ matrix.module }}-failures
+          path: ${{ matrix.module }}/testdata/fuzz/
+          retention-days: 7
 
   visual:
     name: Visual regression
@@ -162,6 +235,8 @@ jobs:
         run: |
           docker build --file Dockerfile.server --tag parallax-server:ci .
           docker build --build-arg "AGENT_VERSION=$GITHUB_SHA" --file Dockerfile.agent --tag parallax-agent:ci .
+      - name: Verify Docker exclusions and image application privacy
+        run: python3 scripts/check-artifact-privacy.py --check-context --image parallax-server:ci --image parallax-agent:ci
       - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
           version: v0.74.0

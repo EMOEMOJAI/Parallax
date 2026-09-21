@@ -160,6 +160,8 @@ export default function OutputTerminal({ lines, nodeName, onClear, runMeta, canS
   }, [])
 
   useEffect(() => {
+    const asked = askedRef.current
+    const requeue = requeueRef.current
     if (lines.length === 0) {
       // Cleared terminal: keep the resolved addresses (they are a cache) but
       // rewind the scan cursor.
@@ -170,8 +172,8 @@ export default function OutputTerminal({ lines, nodeName, onClear, runMeta, canS
     const fresh = []
     // Anything a cancelled batch gave back goes first: its lines are already
     // behind the scan cursor.
-    for (const ip of requeueRef.current) fresh.push(ip)
-    requeueRef.current.clear()
+    for (const ip of requeue) fresh.push(ip)
+    requeue.clear()
     let highestId = startAt
     for (const line of lines) {
       const id = line._id || 0
@@ -180,15 +182,15 @@ export default function OutputTerminal({ lines, nodeName, onClear, runMeta, canS
       if (line.type !== 'output') continue
       const hop = detectHopAddress(line.text)
       if (!hop) continue
-      if (askedRef.current.has(hop.ip) || fresh.includes(hop.ip)) continue
+      if (asked.has(hop.ip) || fresh.includes(hop.ip)) continue
       fresh.push(hop.ip)
     }
     scannedIdRef.current = highestId
     if (fresh.length === 0) return
-    if (askedRef.current.size >= MAX_HOP_LOOKUPS) return
+    if (asked.size >= MAX_HOP_LOOKUPS) return
 
-    const wanted = fresh.slice(0, MAX_HOP_LOOKUPS - askedRef.current.size)
-    for (const ip of wanted) askedRef.current.add(ip)
+    const wanted = fresh.slice(0, MAX_HOP_LOOKUPS - asked.size)
+    for (const ip of wanted) asked.add(ip)
 
     // Hops stream in one line at a time; a short debounce coalesces a whole
     // trace into a couple of batched lookups instead of one request per hop.
@@ -209,7 +211,7 @@ export default function OutputTerminal({ lines, nodeName, onClear, runMeta, canS
             // A 429 (this shares GeoMap's per-IP bucket, backend geoip.go) or a
             // 401 means those hops render with **no suffix** — never an error
             // line. Un-mark them so a later run may try again.
-            for (const ip of batch) askedRef.current.delete(ip)
+            for (const ip of batch) asked.delete(ip)
             continue
           }
           const results = await res.json()
@@ -221,7 +223,7 @@ export default function OutputTerminal({ lines, nodeName, onClear, runMeta, canS
           if (Object.keys(found).length > 0) setHopGeo((prev) => ({ ...prev, ...found }))
         } catch {
           // AbortError (unmount) or a network failure: leave those hops bare.
-          if (!signal?.aborted) for (const ip of batch) askedRef.current.delete(ip)
+          if (!signal?.aborted) for (const ip of batch) asked.delete(ip)
           return
         }
       }
@@ -233,8 +235,8 @@ export default function OutputTerminal({ lines, nodeName, onClear, runMeta, canS
       // coalesce, but it must not outlive a batch that never happened.
       if (!fired) {
         for (const ip of wanted) {
-          askedRef.current.delete(ip)
-          requeueRef.current.add(ip)
+          asked.delete(ip)
+          requeue.add(ip)
         }
       }
     }

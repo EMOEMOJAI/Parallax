@@ -53,7 +53,7 @@ Build from the repository root:
 Containers: `docker compose up --build` (server + one example agent).
 
 Run `go test -race ./...` and `go vet ./...` in each Go module. Frontend checks are
-`npm test` and `npm run build`; there is no frontend lint script. Deployment checks
+`npm run lint`, `npm test` and `npm run build`. Deployment checks
 are `python3 -m unittest discover -s deploy/tests` and `shellcheck deploy/*.sh`.
 
 ## Architecture

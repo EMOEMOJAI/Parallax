@@ -96,7 +96,7 @@ export function useWebSocket(url, authKey = '', authRevision = 0) {
         ws.send(JSON.stringify({ action: 'ping' }))
       }
     }, 30000)
-  }, [url, authKey, authRevision])
+  }, [url, authKey])
 
   useEffect(() => {
     closedRef.current = false
@@ -113,7 +113,7 @@ export function useWebSocket(url, authKey = '', authRevision = 0) {
       wsRef.current = null
       socket?.close()
     }
-  }, [connect])
+  }, [connect, authRevision])
 
   const send = useCallback((data) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {

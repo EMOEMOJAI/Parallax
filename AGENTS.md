@@ -31,14 +31,15 @@ Run the relevant checks for the area changed:
 ```sh
 (cd backend && go vet ./... && go test -race ./...)
 (cd agent && go vet ./... && go test -race ./...)
-(cd frontend && npm ci && npm test && npm run build)
+(cd frontend && npm ci && npm run lint && npm test && npm run build)
 python3 -m unittest discover -s deploy/tests
 shellcheck deploy/*.sh
 git diff --check
 ```
 
 Format Go with `gofmt`. Frontend code uses functional React components, hooks,
-single quotes and no semicolons. There is no frontend lint or typecheck script.
+single quotes and no semicolons. Frontend lint checks JavaScript correctness and
+React hook dependencies; there is no typecheck script.
 Keep documentation-only changes focused; run the backend documentation gate
 with `cd backend && go test -run 'TestS11' ./...` when changing the reference.
 
