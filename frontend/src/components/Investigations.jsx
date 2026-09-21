@@ -50,7 +50,7 @@ export default function Investigations({ current, library, nodes, ws }) {
           <button className={control} onClick={() => { library.deleteBaseline(null); setBaselineId('') }}>Clear saved baselines</button>
         </div>
         {baseline && <p className="text-xs text-text-muted">Expires {new Date(baseline.expiresAt).toLocaleString()}</p>}
-        {baseline && candidate && !compatibleRuns(baseline.run, candidate) && <p role="status" className="text-sm text-warning">Choose results with the same node name, location, command, target and options.</p>}
+        {baseline && candidate && !compatibleRuns(baseline.run, candidate) && <p role="status" className="text-sm text-warning">Choose results with the same node name, location, command, target and options. Kit comparisons also require a recorded step sequence.</p>}
         {comparison && <div className="space-y-2 text-sm" aria-label="Baseline comparison">
           <p className="text-text-muted">Baseline → selected result. Differences are observations, not proof of degradation.</p>
           {comparison.metrics.length > 0 && <div className="overflow-x-auto"><table className="w-full text-left"><caption className="sr-only">Metric changes</caption><thead><tr><th>Metric</th><th>Before</th><th>After</th><th>Change</th></tr></thead><tbody>

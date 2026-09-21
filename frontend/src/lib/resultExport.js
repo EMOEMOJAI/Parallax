@@ -7,17 +7,32 @@ export function resultDocument(meta, lines, summary, exportedAt = new Date().toI
     shared_at: meta?.sharedAt || null,
     node: { name: meta?.nodeName || '', location: meta?.nodeLocation || '' },
     command: meta?.command || '', target: meta?.target || '', options: meta?.options || '',
-    summary: summary || null,
+    // A kit's final summary belongs to its last step, not the whole sequence.
+    summary: meta?.command === 'kit' ? null : summary || null,
     lines: lines.map(({ type, text }) => ({ type, text })),
   }
 }
 
+// Match the server's control-character normalization before redaction and
+// preview. Reject lengths it would truncate so reviewed content stays intact.
+const SHARE_FIELD_LIMITS = { node_name: 64, node_flag: 32, node_location: 128, command: 32, target: 1024, options: 512 }
+const shareField = (value) => String(value || '').replace(/[\u0000-\u001f\u007f]/g, '')
+
 export function shareDocument(meta, lines) {
   return {
-    node_name: meta.nodeName || '', node_flag: meta.nodeFlag || '', node_location: meta.nodeLocation || '',
-    command: meta.command || '', target: meta.target || '', options: meta.options || '',
-    lines: lines.map(({ type, text }) => ({ type, text })),
+    node_name: shareField(meta.nodeName), node_flag: shareField(meta.nodeFlag), node_location: shareField(meta.nodeLocation),
+    command: shareField(meta.command), target: shareField(meta.target), options: shareField(meta.options),
+    lines: lines.map(({ type, text }) => ({ type, text: text.replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '') })),
   }
+}
+
+export function shareValidationError(snapshot) {
+  for (const [field, limit] of Object.entries(SHARE_FIELD_LIMITS)) {
+    if ([...snapshot[field]].length > limit) return `The shared ${field.replaceAll('_', ' ')} exceeds its ${limit}-character limit. Download the output instead.`
+  }
+  const encoder = new TextEncoder()
+  if (snapshot.lines.some((line) => encoder.encode(line.text).length > 4096)) return 'A line exceeds the 4 KiB share limit. Download the output instead.'
+  return ''
 }
 
 // Literal, case-sensitive replacements across metadata and output. Never treat

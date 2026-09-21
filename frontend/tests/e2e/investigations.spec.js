@@ -35,7 +35,7 @@ test('explicit baselines persist, compare like-for-like, expire and delete', asy
   await page.getByRole('button', { name: /^Selected node:/ }).click()
   await page.getByRole('button', { name: 'Node B, Site 2, online', exact: true }).click()
   await runPing(page)
-  await expect(page.getByText('Choose results with the same node name, location, command, target and options.')).toBeVisible()
+  await expect(page.getByText('Choose results with the same node name, location, command, target and options.', { exact: false })).toBeVisible()
   await page.reload()
   await openWorkspace(page)
   await expect(page.getByLabel('Saved baseline', { exact: true }).locator('option')).toHaveCount(2)

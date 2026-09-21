@@ -35,7 +35,7 @@ export function writeBaselines(storage, entries) {
 }
 
 export function compatibleRuns(a, b) {
-  return !!a && !!b && ['command', 'target', 'options'].every((key) => a[key] === b[key]) &&
+  return !!a && !!b && (a.command !== 'kit' || Boolean(a.options && b.options)) && ['command', 'target', 'options'].every((key) => a[key] === b[key]) &&
     a.node.name === b.node.name && a.node.location === b.node.location
 }
 

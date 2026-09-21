@@ -139,7 +139,9 @@ The dashboard remembers the selected node in this browser (`lg-selected-node`)
 and picks an available node if that ID disappears. Storage failures fall back to
 an in-memory selection. Long hexadecimal agent versions are shortened in the
 node details and health views; **Copy full agent version** copies the entire
-reported value. Comparison results stack vertically on narrow screens.
+reported value. The server preserves version labels up to 128 Unicode characters,
+including full 40- and 64-character Git revisions, on registration and health updates.
+Comparison results stack vertically on narrow screens.
 
 Unavailable shared links show an expiry explanation and **Return to dashboard**.
 Temporary loading failures offer **Try again** without claiming the link expired.
@@ -151,13 +153,20 @@ following output.
 
 Text downloads contain the retained output. JSON downloads also include the
 captured node, command, target, options, run start time (when available), export
-time and structured summary. Comparison CSV downloads capture the executed
+time and structured summary. Kit exports record the executed step sequence in
+`options` and omit an aggregate summary; the final step’s summary is not a summary
+of the whole kit. Clearing a running terminal retains metadata for subsequent output.
+Comparison CSV downloads capture the executed
 command and nodes, even if controls are edited afterward. CSV cells are quoted
 and spreadsheet formula prefixes are neutralized.
 
 Sharing opens a fixed snapshot for review before making a request. Optional
 redaction replaces exact, case-sensitive text in both metadata and output; it is
-not automatic detection of secrets. The preview shows the request content.
+not automatic detection of secrets. Control characters that the server would strip
+are removed before redaction and preview. The preview blocks content the server
+would truncate: each line must fit 4 KiB and metadata must fit its field limits.
+The existing 5,000-line / 1 MiB request limits also apply. Use a direct download
+for oversized results. The preview shows the request content.
 Permalinks are readable without authentication by anyone who has the URL, expire
 after 24 hours, and can disappear earlier after a server restart or eviction.
 If clipboard access fails, the created URL remains available for manual copying.
@@ -221,6 +230,8 @@ public sessions continue to use their configured command and target allowlists.
   storage limits or disabled storage are reported; saves are never silently
   treated as successful. Limits: 10 baselines, 256 KiB per check, 2 MiB total.
 - **Comparison:** node name, location, command, target and options must match.
+  Kits also require matching recorded step sequences; older kit snapshots without
+  a sequence cannot be compared automatically.
   Available numeric summaries show before/after values and signed changes;
   packet-loss changes use percentage points. DNS comparison recognizes dig’s
   answer section and ignores TTL/order differences. Route comparison recognizes

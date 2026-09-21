@@ -30,3 +30,23 @@ test('CSV quotes multiline cells and neutralizes spreadsheet formulas', () => {
   assert.ok(csv.includes('"first\nsecond"'))
   assert.ok(csv.endsWith('\r\n'))
 })
+
+test('share review preserves server normalization and blocks every truncation boundary', async () => {
+  const { shareValidationError } = await import('./resultExport.js')
+  const meta = { nodeName: 'Node\u0000 A', command: 'ping', target: 'example.com' }
+  const snapshot = shareDocument(meta, [{ type: 'output', text: 'a\u0000b\n\tc\r' }])
+  assert.equal(snapshot.node_name, 'Node A')
+  assert.deepEqual(snapshot.lines, [{ type: 'output', text: 'ab\n\tc' }])
+  assert.equal(shareValidationError(snapshot), '')
+  assert.equal(shareValidationError(shareDocument(meta, [{ type: 'output', text: 'é'.repeat(2048) }])), '')
+  assert.match(shareValidationError(shareDocument(meta, [{ type: 'output', text: 'é'.repeat(2049) }])), /4 KiB/)
+  assert.match(shareValidationError(shareDocument({ ...meta, nodeName: '界'.repeat(65) }, [])), /64-character/)
+  assert.equal(shareValidationError(shareDocument({ ...meta, nodeName: '界'.repeat(64) }, [])), '')
+})
+
+test('kit exports preserve recorded steps without presenting a final-step summary as aggregate data', () => {
+  const options = JSON.stringify([{ type: 'dns', options: 'type=AAAA' }])
+  const exported = resultDocument({ command: 'kit', options }, [], { answer_count: 1 })
+  assert.equal(exported.options, options)
+  assert.equal(exported.summary, null)
+})

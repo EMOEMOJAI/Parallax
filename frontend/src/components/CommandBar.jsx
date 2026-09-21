@@ -837,8 +837,9 @@ export default function CommandBar({
         <button
           onClick={onStop}
           className="flex items-center gap-1.5 px-4 py-2 rounded-lg shrink-0
-            bg-danger text-white text-sm font-semibold
-            hover:bg-red-600 active:scale-[0.98]
+            bg-red-700 text-white text-sm font-semibold
+            hover:bg-red-800 active:scale-[0.98]
+            focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-text
             shadow-lg shadow-danger/30 hover:shadow-danger/50
             transition-[transform,background-color,box-shadow] duration-200 cursor-pointer"
         >
@@ -851,8 +852,9 @@ export default function CommandBar({
           disabled={disabled || commandUnavailable || targetDisallowed || (needsTarget && !target.trim())}
           title={commandUnavailableTitle}
           className="flex items-center gap-1.5 px-4 py-2 rounded-lg shrink-0
-            bg-accent text-white text-sm font-semibold
-            hover:bg-accent-hover active:scale-[0.98]
+            bg-accent-hover text-white text-sm font-semibold
+            hover:bg-violet-800 active:scale-[0.98]
+            focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-text
             shadow-lg shadow-accent/30 hover:shadow-accent/50
             transition-[transform,background-color,box-shadow] duration-200
             disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none

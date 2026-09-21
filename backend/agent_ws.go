@@ -12,6 +12,9 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// Preserve full Git revisions and release tags while bounding untrusted labels.
+const maxAgentVersionRunes = 128
+
 func (s *Server) handleAgentWS(w http.ResponseWriter, r *http.Request) {
 	// Authenticate agent via Authorization header first, fall back to query param
 	if s.agentAPIKey != "" {
@@ -179,7 +182,7 @@ func (s *Server) handleAgentRegister(conn *websocket.Conn, connMu *sync.Mutex, p
 	reg.IPv4 = sanitizeString(stripControlChars(reg.IPv4), 45)
 	reg.IPv6 = sanitizeString(stripControlChars(reg.IPv6), 45)
 	reg.Provider = sanitizeString(stripControlChars(reg.Provider), 128)
-	reg.Version = sanitizeString(stripControlChars(reg.Version), 32)
+	reg.Version = sanitizeString(stripControlChars(reg.Version), maxAgentVersionRunes)
 	// Built before the lock (it reads nothing but the agent's payload and the
 	// static whitelist) and assigned under nodesMu below.
 	regTools := sanitizeAgentTools(reg.Tools)
@@ -357,7 +360,7 @@ func (s *Server) handleAgentHealth(payload json.RawMessage, node *Node) {
 		}
 	}
 	if combined.Version != "" {
-		v := sanitizeString(stripControlChars(combined.Version), 32)
+		v := sanitizeString(stripControlChars(combined.Version), maxAgentVersionRunes)
 		if v != node.Version {
 			node.Version = v
 			capsChanged = true

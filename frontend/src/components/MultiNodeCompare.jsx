@@ -67,6 +67,26 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
   // the agent never sends a `done` (e.g., agent crashed mid-command).
   const cmdStartTimes = useRef({})
   const commandErrors = useRef(new Set())
+  const pendingLines = useRef({})
+  const flushScheduled = useRef(false)
+  const flushFrame = useRef(null)
+  const discardPending = useCallback(() => {
+    if (flushFrame.current !== null) cancelAnimationFrame(flushFrame.current)
+    flushFrame.current = null
+    pendingLines.current = {}
+    flushScheduled.current = false
+  }, [])
+  const flushPending = useCallback(() => {
+    const batch = pendingLines.current
+    discardPending()
+    setResults((previous) => {
+      const next = { ...previous }
+      for (const [nodeId, lines] of Object.entries(batch)) {
+        next[nodeId] = [...(previous[nodeId] || []), ...lines].slice(-MAX_LINES_PER_NODE)
+      }
+      return next
+    })
+  }, [discardPending])
   const dialogRef = useRef(null)
   useFocusTrap(dialogRef, visible)
   const toggleNode = (id) => {
@@ -84,12 +104,11 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
       cmdIds.current = {}
       cmdToNode.current = {}
       cmdStartTimes.current = {}
-      pendingLines.current = {}
-      flushScheduled.current = false
+      flushPending()
       setRunning(false)
     }
     onClose()
-  }, [running, wsRef, onClose])
+  }, [running, wsRef, onClose, flushPending])
 
   // Cancel running commands when modal is hidden (e.g., Escape key)
   useEffect(() => {
@@ -100,11 +119,10 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
       cmdIds.current = {}
       cmdToNode.current = {}
       cmdStartTimes.current = {}
-      pendingLines.current = {}
-      flushScheduled.current = false
+      flushPending()
       setRunning(false)
     }
-  }, [visible, running, wsRef])
+  }, [visible, running, wsRef, flushPending])
 
   // Reset running state on disconnect so UI doesn't get stuck
   const prevConnected = useRef(wsRef?.connected)
@@ -113,12 +131,11 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
       cmdIds.current = {}
       cmdToNode.current = {}
       cmdStartTimes.current = {}
-      pendingLines.current = {}
-      flushScheduled.current = false
+      flushPending()
       setRunning(false)
     }
     prevConnected.current = wsRef?.connected
-  }, [wsRef?.connected, running])
+  }, [wsRef?.connected, running, flushPending])
 
   // Ensure running commands are cancelled if component unmounts
   // Capture wsRef at mount time to avoid stale reference in cleanup
@@ -136,14 +153,11 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
       cmdIds.current = {}
       cmdToNode.current = {}
       cmdStartTimes.current = {}
-      pendingLines.current = {}
-      flushScheduled.current = false
+      discardPending()
     }
-  }, [])
+  }, [discardPending])
 
   // Listen for results — batch output lines to reduce re-renders
-  const pendingLines = useRef({})
-  const flushScheduled = useRef(false)
 
   useEffect(() => {
     if (!wsRef?.subscribe) return
@@ -165,20 +179,7 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
         if (pendingLines.current[nodeId].length > MAX_LINES_PER_NODE) pendingLines.current[nodeId].splice(0, pendingLines.current[nodeId].length - MAX_LINES_PER_NODE)
         if (!flushScheduled.current) {
           flushScheduled.current = true
-          requestAnimationFrame(() => {
-            flushScheduled.current = false
-            const batch = { ...pendingLines.current }
-            pendingLines.current = {}
-            setResults((prev) => {
-              const next = { ...prev }
-              for (const [nid, lines] of Object.entries(batch)) {
-                const existing = next[nid] || []
-                const updated = [...existing, ...lines]
-                next[nid] = updated.length > MAX_LINES_PER_NODE ? updated.slice(-MAX_LINES_PER_NODE) : updated
-              }
-              return next
-            })
-          })
+          flushFrame.current = requestAnimationFrame(flushPending)
         }
       } else if (data.type === 'summary') {
         const parsed = parseSummary(data.data)
@@ -194,7 +195,7 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
         if (Object.keys(cmdIds.current).length === 0) setRunning(false)
       }
     })
-  }, [wsRef])
+  }, [wsRef, flushPending])
 
   const handleRun = useCallback(() => {
     if (!target.trim() || selectedNodes.length === 0 || commandDisallowed || targetDisallowed) return
@@ -206,8 +207,7 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
     cmdIds.current = {}
     cmdToNode.current = {}
     cmdStartTimes.current = {}
-    pendingLines.current = {}
-    flushScheduled.current = false
+    discardPending()
 
     // Initialize all results at once instead of N separate state updates
     const initial = Object.fromEntries(selectedNodes.map(id => [id, []]))
@@ -234,7 +234,7 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
         command: { id: cmdId, type: command, target: target.trim(), options }
       })
     })
-  }, [selectedNodes, command, target, wsRef, running, optValues, ipVersion, commandDisallowed, targetDisallowed, nodes])
+  }, [selectedNodes, command, target, wsRef, running, optValues, ipVersion, commandDisallowed, targetDisallowed, nodes, discardPending])
 
   // Watchdog: time out per-node commands that never produce a `done` message.
   useEffect(() => {
@@ -247,6 +247,7 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
       }
       if (expired.length === 0) return
 
+      if (expired.length) flushPending()
       expired.forEach((nodeId) => {
         const cmdId = cmdIds.current[nodeId]
         if (cmdId && wsRef?.send) {
@@ -267,7 +268,7 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
       if (Object.keys(cmdIds.current).length === 0) setRunning(false)
     }, 5_000)
     return () => clearInterval(interval)
-  }, [running, wsRef])
+  }, [running, wsRef, flushPending])
 
   const handleStop = () => {
     Object.entries(cmdIds.current).forEach(([nodeId, cmdId]) => {
@@ -276,8 +277,8 @@ export default function MultiNodeCompare({ visible, onClose, nodes, wsRef, allow
     setRunning(false)
     cmdIds.current = {}
     cmdToNode.current = {}
-    pendingLines.current = {}
-    flushScheduled.current = false
+    cmdStartTimes.current = {}
+    flushPending()
   }
 
   // Stay mounted through the close transition so the modal can animate out.

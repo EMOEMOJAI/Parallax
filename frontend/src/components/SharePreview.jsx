@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { apiFetch, AUTH_REQUIRED_EVENT } from '../lib/api'
-import { redactShare } from '../lib/resultExport'
+import { redactShare, shareValidationError } from '../lib/resultExport'
 
 export default function SharePreview({ snapshot, onClose, onShared }) {
   const ref = useRef(null)
@@ -43,8 +43,9 @@ export default function SharePreview({ snapshot, onClose, onShared }) {
     '', 'Output', ...payload.lines.map((line) => line.text),
   ].join('\n'), [payload])
   const tooLarge = useMemo(() => payload.lines.length > 5000 || new TextEncoder().encode(body).length > 1048576, [payload, body])
+  const validationError = useMemo(() => shareValidationError(payload), [payload])
   const create = async () => {
-    if (pending.current || url || tooLarge) return
+    if (pending.current || url || tooLarge || validationError) return
     pending.current = true
     setBusy(true)
     setError('')
@@ -91,11 +92,12 @@ export default function SharePreview({ snapshot, onClose, onShared }) {
             className="mt-2 block w-full rounded-lg border border-border/40 bg-bg-primary p-3 font-mono text-xs text-text-secondary" />
         </label>
         {tooLarge && <p role="alert">This snapshot is too large to share. Download it instead (limit: 5,000 lines and 1 MiB).</p>}
+        {validationError && <p role="alert">{validationError}</p>}
         {error && <p role="alert" className="text-warning">{error}</p>}
         {url ? <label className="text-xs">Share link
           <input ref={linkRef} aria-label="Share link" readOnly value={url} onFocus={(event) => event.target.select()}
             className="mt-2 min-h-11 w-full rounded-lg border border-border/40 bg-bg-primary px-3 text-text-primary" />
-        </label> : <button onClick={create} disabled={busy || tooLarge}
+        </label> : <button onClick={create} disabled={busy || tooLarge || Boolean(validationError)}
           className="min-h-11 rounded-lg border border-accent/40 bg-accent/20 px-4 text-accent-text disabled:opacity-40 cursor-pointer">
           {busy ? 'Creating link…' : 'Create share link'}
         </button>}

@@ -347,14 +347,14 @@ func TestS5ClaimedToolDoesNotMakeATypeDispatchable(t *testing.T) {
 
 // ---- version sanitization ---------------------------------------------------
 
-func TestS5VersionIsStrippedAndTruncatedTo32Runes(t *testing.T) {
+func TestS5VersionIsStrippedAndTruncatedTo128Runes(t *testing.T) {
 	srv, ts := s5NewServer(t)
 	// 200 runes, no HTML-escapable character anywhere: sanitizeString
 	// strips control characters and then truncates by rune count; it does
 	// not escape, so an escapable char near the boundary is irrelevant here.
 	raw := "v1.2.3-\x00\x1b\x7f" + strings.Repeat("abcdefghij", 20)
 	stripped := "v1.2.3-" + strings.Repeat("abcdefghij", 20)
-	want := string([]rune(stripped)[:32])
+	want := string([]rune(stripped)[:128])
 
 	reg := s5RegisterPayload("LongVersion")
 	reg["version"] = raw
@@ -364,8 +364,8 @@ func TestS5VersionIsStrippedAndTruncatedTo32Runes(t *testing.T) {
 	if version != want {
 		t.Fatalf("version = %q, want %q", version, want)
 	}
-	if len([]rune(version)) != 32 {
-		t.Fatalf("version is %d runes, want 32", len([]rune(version)))
+	if len([]rune(version)) != 128 {
+		t.Fatalf("version is %d runes, want 128", len([]rune(version)))
 	}
 	if strings.ContainsAny(version, "\x00\x1b\x7f") {
 		t.Fatalf("version still carries control characters: %q", version)
@@ -736,4 +736,31 @@ func TestS5SameToolSetComparesLengthThenKeys(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Full build identities must survive every transport consumed by readiness/copy.
+func TestAgentRevisionSurvivesRegistrationAndHealth(t *testing.T) {
+	srv, ts := s5NewServer(t)
+	statuses := s5Client(t, ts)
+	first := strings.Repeat("a", 40)
+	second := strings.Repeat("b", 64)
+	reg := s5RegisterPayload("Revision Test")
+	reg["version"] = first
+	agent, id := s5RegisterAgent(t, srv, ts, reg)
+	check := func(want string) {
+		t.Helper()
+		frame := s5NextStatus(t, statuses, id, 5*time.Second)
+		if frame["version"] != want {
+			t.Fatalf("broadcast truncated full revision: got %v, want %s", frame["version"], want)
+		}
+		for _, path := range []string{"/api/nodes", "/api/nodes/health"} {
+			node := s5FindByID(t, s5GetJSONList(t, ts, path), id)
+			if node["version"] != want {
+				t.Fatalf("%s truncated full revision", path)
+			}
+		}
+	}
+	check(first)
+	s5Send(t, agent, "health", map[string]any{"version": second, "cpus": 1})
+	check(second)
 }

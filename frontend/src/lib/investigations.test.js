@@ -68,3 +68,11 @@ test('guided target validation accepts hostnames and rejects URLs, ports, shell 
   for (const host of ['example.com', 'localhost', '192.0.2.1', 'xn--bcher-kva.example']) assert.equal(validDiagnosticHost(host), true)
   for (const host of ['', '-bad.example', 'https://example.com', 'example.com:443', 'example.com/a', 'a;ls', 'a'.repeat(64) + '.com', 'a..com']) assert.equal(validDiagnosticHost(host), false)
 })
+
+test('kit baseline matching requires identical recorded sequences', () => {
+  const a = { ...run('kit'), options: JSON.stringify([{ type: 'ping', options: 'count=5' }]) }
+  const b = { ...run('kit'), options: JSON.stringify([{ type: 'ping', options: 'count=10' }]) }
+  assert.equal(compatibleRuns(a, b), false)
+  assert.equal(compatibleRuns(a, { ...a }), true)
+  assert.equal(compatibleRuns(run('kit'), run('kit')), false)
+})

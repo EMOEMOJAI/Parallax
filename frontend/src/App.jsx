@@ -388,7 +388,7 @@ function Dashboard({ onSignOut }) {
           { _id: ++lineIdCounter.current, type: 'info', text: `Running on ${selectedNode?.name} (${selectedNode?.location})\n` },
           { _id: ++lineIdCounter.current, type: 'info', text: `── [1/${sequence.length}] ${step.type} ${command.target} ──` },
         ])
-        captureRunMeta({ type: 'kit', target: command.target, options: '' })
+        captureRunMeta({ type: 'kit', target: command.target, options: JSON.stringify(sequence) })
         dispatchCommand({ type: step.type, target: command.target, options: step.options })
         return
       }
@@ -535,12 +535,12 @@ function Dashboard({ onSignOut }) {
               lines={lines}
               summary={summary}
               nodeName={runMeta ? (runMeta.nodeName || 'Unknown node') : selectedNode?.name}
-              onClear={() => { dismissReplay(); setLines([]); setSummary(null); setRunMeta(null) }}
+              onClear={() => { dismissReplay(); setLines([]); setSummary(null); if (!running) setRunMeta(null) }}
               runMeta={runMeta}
               canShare={!isPublic}
             />}
             {!isPublic && <Investigations library={investigations} nodes={nodes} ws={ws}
-              current={!running && runMeta && lines.length ? resultDocument(runMeta, lines, runMeta.command === 'kit' ? null : summary) : null} />}
+              current={!running && runMeta && lines.length ? resultDocument(runMeta, lines, summary) : null} />}
           </div>
           <div className="w-full lg:w-72 shrink-0 space-y-3">
             <NodeInfo node={selectedNode} />
