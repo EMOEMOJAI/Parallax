@@ -926,16 +926,20 @@ func (s *Server) scheduleAcceptOutput(resp CommandResponse) bool {
 // status and the structured summary (F35 — the old substring match on the
 // output buffer is gone).
 //
-//   - numeric loss_pct (ping, mtr): ok when the command exited cleanly and
+//   - an unsuccessful exit is always error, regardless of partial results.
+//   - numeric loss_pct (ping, mtr) after a successful exit: ok when
 //     loss < 20 %, degraded from 20 % up to (but not including) 100 %,
 //     error otherwise — a fully black-holed target is an outage, not a
 //     degradation.
 //   - no loss_pct (http, dns) or no summary at all: ok when the command
 //     exited cleanly, else error.
 func scheduleStatusFor(exitOK bool, summary []byte) string {
+	if !exitOK {
+		return "error"
+	}
 	if loss, ok := summaryLossPct(summary); ok {
 		switch {
-		case exitOK && loss < 20:
+		case loss < 20:
 			return "ok"
 		case loss >= 20 && loss < 100:
 			return "degraded"
@@ -943,10 +947,7 @@ func scheduleStatusFor(exitOK bool, summary []byte) string {
 			return "error"
 		}
 	}
-	if exitOK {
-		return "ok"
-	}
-	return "error"
+	return "ok"
 }
 
 // finalizeSchedule writes the result into the schedule, schedules the next
@@ -1170,6 +1171,10 @@ func (s *Server) handleSchedulesCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.IntervalSec < scheduleMinInterval || req.IntervalSec > scheduleMaxInterval {
 		writeJSONError(w, fmt.Sprintf("interval_sec must be between %d and %d", scheduleMinInterval, scheduleMaxInterval), 400)
+		return
+	}
+	if strings.TrimSpace(req.Target) == "" {
+		writeJSONError(w, "target is required", 400)
 		return
 	}
 	if len(req.Target) > 1024 || len(req.Options) > 512 {

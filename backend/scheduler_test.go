@@ -587,3 +587,19 @@ func TestFinalizeConcurrentWithBeginRun(t *testing.T) {
 		t.Errorf("scheduleRuns leaked %d entries", n)
 	}
 }
+
+func TestScheduleCreateRejectsBlankTargets(t *testing.T) {
+	srv, _, _ := newSchedulerTestServer(t)
+	for _, target := range []string{"", "   "} {
+		body, _ := json.Marshal(map[string]any{"command": "ping", "target": target, "interval_sec": 60})
+		request := httptest.NewRequest(http.MethodPost, "/api/schedules", strings.NewReader(string(body)))
+		response := httptest.NewRecorder()
+		srv.handleSchedules(response, request)
+		if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "target is required") {
+			t.Fatalf("target %q: status %d, body %s", target, response.Code, response.Body.String())
+		}
+	}
+	if len(srv.scheduleViews()) != 0 {
+		t.Fatal("invalid schedules were persisted")
+	}
+}

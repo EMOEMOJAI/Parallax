@@ -317,11 +317,11 @@ func TestS7OnLinkPrefixIsBlockedEvenWhenGloballyRoutable(t *testing.T) {
 	probeAllowPrivate.Store(false)
 	// A build host need not have native IPv6, so the on-link set comes from the
 	// seam rather than from real interfaces.
-	localPrefixSource = func() []netip.Prefix {
+	localPrefixSource = func() ([]netip.Prefix, error) {
 		return []netip.Prefix{
 			netip.MustParsePrefix("2001:470:abcd:1234::/64"),
 			netip.MustParsePrefix("203.0.55.0/24"),
-		}
+		}, nil
 	}
 	refreshLocalPrefixes()
 
@@ -338,7 +338,7 @@ func TestS7OnLinkPrefixIsBlockedEvenWhenGloballyRoutable(t *testing.T) {
 	// Replace-only discipline: a refresh publishes a fresh slice, and the
 	// previously returned snapshot is unaffected.
 	before := snapshotLocalPrefixes()
-	localPrefixSource = func() []netip.Prefix { return nil }
+	localPrefixSource = func() ([]netip.Prefix, error) { return nil, nil }
 	refreshLocalPrefixes()
 	if len(before) != 2 {
 		t.Errorf("an earlier snapshot changed under the caller: %v", before)
@@ -349,7 +349,10 @@ func TestS7OnLinkPrefixIsBlockedEvenWhenGloballyRoutable(t *testing.T) {
 }
 
 func TestS7InterfaceLocalPrefixesIncludesTheHostAddressesThemselves(t *testing.T) {
-	prefixes := interfaceLocalPrefixes()
+	prefixes, err := interfaceLocalPrefixes()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(prefixes) == 0 {
 		t.Skip("no interface addresses on this host")
 	}
@@ -1920,11 +1923,11 @@ func TestS7UnregisterOnlyRemovesItsOwnRegistration(t *testing.T) {
 func TestS7RaceOnLinkRefreshAgainstBlockedChecksAndTheDownloadCap(t *testing.T) {
 	s7Seams(t)
 	probeAllowPrivate.Store(false)
-	localPrefixSource = func() []netip.Prefix {
+	localPrefixSource = func() ([]netip.Prefix, error) {
 		return []netip.Prefix{
 			netip.MustParsePrefix("2001:470:abcd:1234::/64"),
 			netip.MustParsePrefix("192.168.7.0/24"),
-		}
+		}, nil
 	}
 
 	stop := make(chan struct{})

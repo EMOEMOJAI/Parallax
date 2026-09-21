@@ -309,6 +309,7 @@ func TestScheduleStatusDerivation(t *testing.T) {
 		{"ping 20% loss", true, `{"loss_pct":20}`, "degraded"},
 		{"ping 40% loss", true, `{"loss_pct":40}`, "degraded"},
 		{"ping 100% loss", true, `{"loss_pct":100}`, "error"},
+		{"partial loss but failed exit", false, `{"loss_pct":40}`, "error"},
 		{"low loss but failed exit", false, `{"loss_pct":0}`, "error"},
 		{"non-numeric loss_pct falls back to exit", true, `{"loss_pct":"none"}`, "ok"},
 	}

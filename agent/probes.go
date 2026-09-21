@@ -310,19 +310,21 @@ func isAllZero(b []byte) bool {
 // ── On-link prefix set: shared mutable state, replace-only ──
 //
 // Synchronized exactly like the S5 tool cache: the refresh builds a *fresh*
-// slice and assigns it under localPrefixesMu, readers only ever go through
-// snapshotLocalPrefixes, and the published slice is never edited in place.
+// slice and assigns it under localPrefixesMu. Readers hold that lock or use
+// snapshotLocalPrefixes; the published slice is never edited in place.
 // Refreshed at startup and on the tools-refresh ticker in main(), which always
 // runs — not the IP-detection ticker, which only runs under -auto-ip and would
 // leave -auto-ip=false nodes with a set frozen at boot.
 var (
-	localPrefixes   []netip.Prefix
-	localPrefixesMu sync.RWMutex
+	localPrefixes            []netip.Prefix
+	localPrefixesUnavailable bool
+	localPrefixesMu          sync.RWMutex
 )
 
 func storeLocalPrefixes(prefixes []netip.Prefix) {
 	localPrefixesMu.Lock()
 	localPrefixes = prefixes
+	localPrefixesUnavailable = false
 	localPrefixesMu.Unlock()
 }
 
@@ -338,14 +340,28 @@ func snapshotLocalPrefixes() []netip.Prefix {
 }
 
 // refreshLocalPrefixes re-enumerates the host's interfaces and publishes a
-// fresh set.
+// fresh set. Failed or partial enumeration blocks target connections until
+// recovery; it must not silently discard the on-link boundary.
 func refreshLocalPrefixes() {
-	storeLocalPrefixes(localPrefixSource())
+	prefixes, err := localPrefixSource()
+	if err != nil {
+		localPrefixesMu.Lock()
+		localPrefixesUnavailable = true
+		localPrefixesMu.Unlock()
+		log.Println("Cannot enumerate on-link prefixes; native target probes are blocked unless PROBE_ALLOW_PRIVATE=1")
+		return
+	}
+	storeLocalPrefixes(prefixes)
 }
 
 func addrInLocalPrefix(a netip.Addr) bool {
 	a = a.Unmap().WithZone("")
-	for _, p := range snapshotLocalPrefixes() {
+	localPrefixesMu.RLock()
+	defer localPrefixesMu.RUnlock()
+	if localPrefixesUnavailable {
+		return true
+	}
+	for _, p := range localPrefixes {
 		if p.Contains(a) {
 			return true
 		}
@@ -358,10 +374,10 @@ func addrInLocalPrefix(a netip.Addr) bool {
 // /128 address has no wider prefix to hide behind). This covers on-link GUAs;
 // off-link destinations translated by custom network-specific NAT64 prefixes
 // still require an egress firewall enforcing the operator's network policy.
-func interfaceLocalPrefixes() []netip.Prefix {
+func interfaceLocalPrefixes() ([]netip.Prefix, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	out := make([]netip.Prefix, 0, 8)
 	seen := make(map[netip.Prefix]bool, 8)
@@ -375,7 +391,7 @@ func interfaceLocalPrefixes() []netip.Prefix {
 	for _, ifi := range ifaces {
 		addrs, err := ifi.Addrs()
 		if err != nil {
-			continue
+			return nil, err
 		}
 		for _, a := range addrs {
 			ipnet, ok := a.(*net.IPNet)
@@ -396,7 +412,7 @@ func interfaceLocalPrefixes() []netip.Prefix {
 			}
 		}
 	}
-	return out
+	return out, nil
 }
 
 // ── Resolution ──
@@ -1435,6 +1451,12 @@ func newDownloadTransport(pinned netip.Addr) *http.Transport {
 // can see why a probe to a neighbour was refused without turning on debug
 // logging. Same shape as logToolProbe.
 func logLocalPrefixes() {
+	localPrefixesMu.RLock()
+	unavailable := localPrefixesUnavailable
+	localPrefixesMu.RUnlock()
+	if unavailable {
+		return // refreshLocalPrefixes already logged the failure.
+	}
 	prefixes := snapshotLocalPrefixes()
 	if len(prefixes) == 0 {
 		log.Println("On-link prefix set is empty — native probes will fall back to the static address policy only")
