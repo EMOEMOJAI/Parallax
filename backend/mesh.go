@@ -470,7 +470,8 @@ func (s *Server) meshAcceptOutput(resp CommandResponse) bool {
 		// nowhere else. At 100 % loss the agent omits avg_ms, and a failed
 		// command carries no summary at all — both record a failure rather
 		// than a zero, so a dead link never looks like a 0 ms link.
-		if avg, got := summaryAvgMs(summary); got && validLatencyMs(avg) {
+		loss, hasLoss := summaryLossPct(summary)
+		if avg, got := summaryAvgMs(summary); parseExitOK(resp.Data) && got && validLatencyMs(avg) && (!hasLoss || loss < 100) {
 			s.recordMatrixEntry(probe.fromID, probe.toID, avg, meshSourceMesh)
 			probe.mu.Lock()
 			probe.ok = true

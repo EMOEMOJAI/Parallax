@@ -358,13 +358,15 @@ func (s *Server) loadSchedules() {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			log.Printf("Schedules file %s read error: %v (starting empty)", path, err)
+			s.scheduleLoadFailed.Store(true)
+			log.Printf("Schedules file %s read error: %v (schedules unavailable; file preserved)", path, err)
 		}
 		return
 	}
 	var list []*Schedule
 	if err := json.Unmarshal(data, &list); err != nil {
-		log.Printf("Schedules file %s parse error: %v (starting empty)", path, err)
+		s.scheduleLoadFailed.Store(true)
+		log.Printf("Schedules file %s parse error: %v (schedules unavailable; file preserved)", path, err)
 		return
 	}
 	var disallowed []string
@@ -560,6 +562,9 @@ func (s *Server) flushSchedules() {
 // existing file. saveWriteMu serializes writers so a slow marshal can never
 // land after a newer snapshot.
 func (s *Server) persistSchedules(path string) {
+	if s.scheduleLoadFailed.Load() {
+		return
+	}
 	s.saveWriteMu.Lock()
 	defer s.saveWriteMu.Unlock()
 	// Marshal value copies taken under the lock — marshaling the live
@@ -886,13 +891,13 @@ func (s *Server) scheduleAcceptOutput(resp CommandResponse) bool {
 		sc.currentMu.Lock()
 		// Cap buffer size in-place so a runaway command can't OOM us.
 		if sc.currentBuf.Len() < scheduleMaxResult {
+			if sc.currentBuf.Len() > 0 {
+				sc.currentBuf.WriteByte('\n')
+			}
 			remain := scheduleMaxResult - sc.currentBuf.Len()
 			line := resp.Data
 			if len(line) > remain {
 				line = line[:remain]
-			}
-			if sc.currentBuf.Len() > 0 {
-				sc.currentBuf.WriteByte('\n')
 			}
 			sc.currentBuf.WriteString(line)
 		}
@@ -1124,6 +1129,10 @@ func (s *Server) handleSchedulesList(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, "unauthorized", 401)
 		return
 	}
+	if s.scheduleLoadFailed.Load() {
+		writeJSONError(w, "schedules unavailable: repair the persistence file and restart", 503)
+		return
+	}
 	// Encode value copies taken under the lock — see scheduleViews. The list
 	// response deliberately omits the run history (polled every 5 s); the
 	// sparkline fetches /api/schedules/<id>/history instead.
@@ -1137,6 +1146,10 @@ func (s *Server) handleSchedulesCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	if !s.authClient(r) {
 		writeJSONError(w, "unauthorized", 401)
+		return
+	}
+	if s.scheduleLoadFailed.Load() {
+		writeJSONError(w, "schedules unavailable: repair the persistence file and restart", 503)
 		return
 	}
 	var req struct {
@@ -1229,6 +1242,10 @@ func (s *Server) handleSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 	if !s.authClient(r) {
 		writeJSONError(w, "unauthorized", 401)
+		return
+	}
+	if s.scheduleLoadFailed.Load() {
+		writeJSONError(w, "schedules unavailable: repair the persistence file and restart", 503)
 		return
 	}
 	id := strings.TrimPrefix(r.URL.Path, "/api/schedules/")
