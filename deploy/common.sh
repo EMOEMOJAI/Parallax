@@ -236,3 +236,33 @@ if count:
     print('migrated')
 PY
 }
+
+# Replace a runtime destination without following service-created symlinks.
+# Stage in the root-owned application directory, set ownership on its open FD,
+# and rename through a pinned directory FD; never chown the destination path.
+migrate_legacy_schedule_data() {
+  python3 - "$APP_DIR" "$1" "$2" <<'PYDATA'
+import os, pathlib, shutil, stat, sys, tempfile
+root = pathlib.Path(sys.argv[1])
+uid, gid = map(int, sys.argv[2:])
+directory = os.open(root / 'data', os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+try:
+    source = os.open(root / 'schedules.json', os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(source, 'rb') as incoming:
+        if not stat.S_ISREG(os.fstat(incoming.fileno()).st_mode):
+            raise SystemExit('Legacy schedules must be a regular file')
+        fd, staged = tempfile.mkstemp(prefix='.schedules.migrate.', dir=root)
+        try:
+            with os.fdopen(fd, 'wb') as outgoing:
+                shutil.copyfileobj(incoming, outgoing)
+                outgoing.flush()
+                os.fchmod(outgoing.fileno(), 0o600)
+                os.fchown(outgoing.fileno(), uid, gid)
+                os.fsync(outgoing.fileno())
+            os.replace(staged, 'schedules.json', dst_dir_fd=directory)
+        finally:
+            if os.path.exists(staged): os.unlink(staged)
+finally:
+    os.close(directory)
+PYDATA
+}

@@ -54,6 +54,42 @@ class CommonTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(env_file.read_text(), 'SCHEDULES_FILE=/custom/schedules.json\n')
 
+    def test_schedule_migration_replaces_destination_symlink_without_touching_target(self):
+        with tempfile.TemporaryDirectory() as temp:
+            app = Path(temp)
+            (app / 'data').mkdir()
+            (app / 'schedules.json').write_text('[{"id":"fixture"}]')
+            sentinel = app / 'sentinel'
+            sentinel.write_text('keep this')
+            sentinel.chmod(0o640)
+            (app / 'data/schedules.json').symlink_to(sentinel)
+            result = self.shell('APP_DIR=$1; migrate_legacy_schedule_data "$2" "$3"', str(app), str(os.getuid()), str(os.getgid()))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(sentinel.read_text(), 'keep this')
+            self.assertEqual(sentinel.stat().st_mode & 0o777, 0o640)
+            destination = app / 'data/schedules.json'
+            self.assertFalse(destination.is_symlink())
+            self.assertEqual(destination.read_text(), '[{"id":"fixture"}]')
+            self.assertEqual(destination.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(list(app.glob('.schedules.migrate.*')), [])
+
+    def test_schedule_migration_refuses_source_or_directory_symlinks(self):
+        for which in ('source', 'directory'):
+            with self.subTest(which=which), tempfile.TemporaryDirectory() as temp:
+                app = Path(temp)
+                target = app / 'outside'
+                target.mkdir()
+                (target / 'schedules.json').write_text('keep this')
+                if which == 'source':
+                    (app / 'data').mkdir()
+                    (app / 'schedules.json').symlink_to(target / 'schedules.json')
+                else:
+                    (app / 'data').symlink_to(target, target_is_directory=True)
+                    (app / 'schedules.json').write_text('[]')
+                result = self.shell('APP_DIR=$1; migrate_legacy_schedule_data "$2" "$3"', str(app), str(os.getuid()), str(os.getgid()))
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual((target / 'schedules.json').read_text(), 'keep this')
+
     def activation_case(self, trigger, initially_active=True):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
