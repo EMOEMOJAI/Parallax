@@ -23,10 +23,21 @@ class PrivacyGuardTests(unittest.TestCase):
         self.assertIn('private deployment address', privacy.inspect('docs/deployment.md', address))
 
     def test_sensitive_names_and_local_domains(self):
-        for path in ['.env.production', 'deploy/inventory.yml', 'agent/.ssh/config', 'private/state.json']:
+        for path in ['.env.production', 'frontend/public/production.env', 'deploy/inventory.yml', 'agent/.ssh/config', 'private/state.json']:
             self.assertTrue(privacy.inspect(path, ''))
         self.assertTrue(privacy.inspect('docs/setup.md', 'node' + '.local'))
         self.assertEqual(privacy.inspect('.env.example', ''), [])
+
+    def test_private_ipv6_inventory_and_reserved_examples(self):
+        for address in ['fd12:3456:789a::1', '[FE80::1%eth0]', '::ffff:c0a8:3201']:
+            self.assertIn('private deployment address', privacy.inspect('docs/deployment.md', address))
+            self.assertEqual(privacy.inspect('agent/policy_test.go', address), [])
+        for address in ['2001:db8::1', '::1', 'https://example.com:8080', '12:30:00']:
+            self.assertEqual(privacy.inspect('docs/deployment.md', address), [])
+
+    def test_named_env_files_are_excluded_from_docker_context(self):
+        rules = (Path(__file__).resolve().parents[2] / '.dockerignore').read_text().splitlines()
+        self.assertIn('**/*.env', rules)
 
 
 class IndexPrivacyTests(unittest.TestCase):

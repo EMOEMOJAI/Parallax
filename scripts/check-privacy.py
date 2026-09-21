@@ -14,7 +14,9 @@ EMAIL = re.compile(r'(?<![\w.+-])[\w.+-]+@([\w.-]+\.[A-Za-z]{2,})(?![\w.-])')
 HOME = re.compile(r'/(?:Users|home)/[A-Za-z0-9_.-]+/')
 PRIVATE_KEY = re.compile(r'-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----')
 IPV4 = re.compile(r'(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?![\w.])')
+IPV6 = re.compile(r'(?<![\w:])(?:[0-9A-Fa-f]*:){2,}[0-9A-Fa-f:.]*(?:%[\w.-]+)?(?![\w:])')
 PRIVATE_NETS = tuple(ipaddress.ip_network(n) for n in ('10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'))
+PRIVATE_V6_NETS = tuple(ipaddress.ip_network(n) for n in ('fc00::/7', 'fe80::/10'))
 LOCAL_DOMAIN = re.compile(r'\b(?:[a-z0-9-]+\.)+(?:local|lan|internal|home\.arpa)\b', re.I)
 
 
@@ -22,7 +24,7 @@ def inspect(path, data):
     """Return rule names only, never the detected value."""
     findings = set()
     name = pathlib.PurePosixPath(path)
-    if (name.name.startswith('.env') and name.name != '.env.example') or name.suffix in {'.pem', '.key', '.p12', '.pfx'} or any(p in {'.ssh', 'private'} for p in name.parts) or name.name in {'id_rsa', 'id_ed25519', 'parallax-deploy', 'looking-glass-deploy', 'inventory.ini', 'inventory.yml', 'inventory.yaml'}:
+    if (name.name.startswith('.env') and name.name != '.env.example') or name.suffix in {'.env', '.pem', '.key', '.p12', '.pfx'} or any(p in {'.ssh', 'private'} for p in name.parts) or name.name in {'id_rsa', 'id_ed25519', 'parallax-deploy', 'looking-glass-deploy', 'inventory.ini', 'inventory.yml', 'inventory.yaml'}:
         findings.add('credential or inventory filename')
     if PRIVATE_KEY.search(data):
         findings.add('private key material')
@@ -43,6 +45,14 @@ def inspect(path, data):
             try:
                 address = ipaddress.ip_address(match.group())
                 if any(address in network for network in PRIVATE_NETS):
+                    findings.add('private deployment address')
+            except ValueError:
+                pass
+        for match in IPV6.finditer(data):
+            try:
+                address = ipaddress.ip_address(match.group().split('%', 1)[0])
+                mapped = getattr(address, 'ipv4_mapped', None)
+                if any(address in network for network in PRIVATE_V6_NETS) or (mapped and any(mapped in network for network in PRIVATE_NETS)):
                     findings.add('private deployment address')
             except ValueError:
                 pass

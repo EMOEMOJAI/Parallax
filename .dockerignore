@@ -9,6 +9,7 @@ private
 **/*.pyc
 **/.env
 **/.env.*
+**/*.env
 **/*.pem
 **/*.key
 **/.deploy-key-path
