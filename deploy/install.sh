@@ -21,6 +21,7 @@ prepare_repo
 begin_activation looking-glass-server
 chown root:root "$APP_DIR/looking-glass-server.new"
 chmod 755 "$APP_DIR/looking-glass-server.new"
+[ ! -L "$APP_DIR/data" ] || fail 'Runtime data directory must not be a symlink.'
 install -d -o lookingglass -g lookingglass -m 750 "$APP_DIR/data"
 install -d -o root -g root -m 755 "$APP_DIR/frontend"
 # Preserve the latest legacy data, including an explicit old .env override.
@@ -29,9 +30,7 @@ if [ -f "$APP_DIR/schedules.json" ] && { [ ! -f "$APP_DIR/data/schedules.json" ]
   if [ "$(systemctl show -p LoadState --value looking-glass-server.service)" = loaded ]; then
     systemctl stop looking-glass-server
   fi
-  cp -a "$APP_DIR/schedules.json" "$APP_DIR/data/schedules.json"
-  chown lookingglass:lookingglass "$APP_DIR/data/schedules.json"
-  chmod 600 "$APP_DIR/data/schedules.json"
+  migrate_legacy_schedule_data "$(id -u lookingglass)" "$(id -g lookingglass)"
 fi
 mv -f "$APP_DIR/looking-glass-server.new" "$APP_DIR/looking-glass-server"
 # Retain the prior frontend for manual rollback on an existing installation.
