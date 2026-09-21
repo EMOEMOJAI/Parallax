@@ -12,7 +12,7 @@ import tempfile
 spec = importlib.util.spec_from_file_location('privacy', Path(__file__).with_name('check-privacy.py'))
 privacy = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(privacy)
-TEXT = {'.js', '.json', '.html', '.css', '.md', '.txt', '.map', '.svg'}
+TEXT = {'.js', '.json', '.html', '.css', '.md', '.txt', '.map', '.svg', '.yaml', '.yml', '.toml', '.ini', '.conf', '.csv', '.xml'}
 LIMIT = 128 * 1024 * 1024
 
 
@@ -34,9 +34,14 @@ def image_metadata(data):
     elif data.startswith(b'\xff\xd8'):
         pos = 2
         while pos < len(data):
-            if pos+4 > len(data) or data[pos] != 255: return True
+            if pos+2 > len(data) or data[pos] != 255: return True
+            # JPEG permits fill bytes before a marker.
+            while pos+1 < len(data) and data[pos+1] == 255:
+                pos += 1
+            if pos+1 >= len(data): return True
             marker = data[pos+1]
-            if marker in {0xda, 0xd9}: break
+            if marker == 0xd9: return pos+2 != len(data)
+            if pos+4 > len(data): return True
             size = struct.unpack('>H', data[pos+2:pos+4])[0]
             if size < 2 or pos+2+size > len(data): return True
             payload = data[pos+4:pos+2+size]
@@ -70,16 +75,38 @@ def image_metadata(data):
                 empty = b'Photoshop 3.0\0' + b'8BIM\x04\x04\0\0\0\0\0\0' + b'8BIM\x04\x25\0\0\0\0\0\x10' + bytes.fromhex('d41d8cd98f00b204e9800998ecf8427e')
                 if payload != empty: return True
             pos += size + 2
+            if marker == 0xda:
+                # Entropy-coded scan bytes escape FF as FF00; restart markers
+                # also belong to the scan. Inspect metadata between scans and
+                # before EOI, including progressive JPEGs.
+                while True:
+                    pos = data.find(b'\xff', pos)
+                    if pos < 0 or pos+1 >= len(data): return True
+                    following = data[pos+1]
+                    if following == 0 or 0xd0 <= following <= 0xd7:
+                        pos += 2
+                        continue
+                    break
+        return True  # JPEG ended without EOI.
     return False
 
 
 def inspect_file(name, data):
     findings = set(privacy.inspect(name, ''))
     if forbidden_runtime_path(name): findings.add('repository or runtime state in artifact')
-    if privacy.HOME.search(data.decode('utf-8', errors='replace')): findings.add('personal build path')
-    if privacy.PRIVATE_KEY.search(data.decode('utf-8', errors='replace')): findings.add('private key material')
-    if PurePosixPath(name).suffix.lower() in TEXT:
-        findings.update(privacy.inspect('docs/' + name, data.decode('utf-8', errors='replace')))
+    decoded = data.decode('utf-8', errors='replace')
+    if privacy.HOME.search(decoded): findings.add('personal build path')
+    if privacy.PRIVATE_KEY.search(decoded): findings.add('private key material')
+    try:
+        text = data.decode('utf-16' if data.startswith((b'\xff\xfe', b'\xfe\xff')) else 'utf-8')
+    except UnicodeError:
+        text = None
+    # Detect text by content too: LICENSE and other extensionless files ship in
+    # release bundles, and config formats must not evade the text policy.
+    if text is not None and '\0' not in text:
+        findings.update(privacy.inspect('docs/' + name, text))
+    elif PurePosixPath(name).suffix.lower() in TEXT:
+        findings.update(privacy.inspect('docs/' + name, decoded))
     if image_metadata(data): findings.add('unapproved image metadata or malformed image')
     return findings
 

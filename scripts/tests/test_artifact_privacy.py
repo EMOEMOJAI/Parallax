@@ -40,6 +40,14 @@ class ArtifactPrivacyTests(unittest.TestCase):
         self.assertIn('unsafe archive path', self.archive('../escape.txt'))
         self.assertIn('application link or special file', self.archive(kind=tarfile.SYMTYPE))
 
+    def test_text_content_without_a_known_extension(self):
+        email = 'person' + '@mail.testdomain.org'
+        for name in ['app/LICENSE', 'app/settings.yml', 'app/settings.toml', 'app/notes.custom']:
+            for encoding in ['utf-8', 'utf-16']:
+                with self.subTest(name=name, encoding=encoding):
+                    self.assertIn('non-example email address', self.archive(name, email.encode(encoding)))
+        self.assertEqual(self.archive('app/LICENSE', b'MIT License\nCopyright Parallax contributors'), set())
+
     def test_streamed_image_layer_does_not_hide_an_earlier_secret(self):
         findings = set()
         for name in ['app/production.env', 'app/.wh.production.env']:
@@ -62,3 +70,16 @@ class ArtifactPrivacyTests(unittest.TestCase):
         self.assertTrue(artifacts.image_metadata(jpeg))
         for path in (Path(__file__).resolve().parents[2]/'frontend/public').glob('*.png'):
             self.assertFalse(artifacts.image_metadata(path.read_bytes()))
+
+    def test_jpeg_metadata_after_image_scan(self):
+        jpeg = (Path(__file__).resolve().parents[2]/'docs/brand/parallax-lockup.jpg').read_bytes()
+        self.assertFalse(artifacts.image_metadata(jpeg))
+        self.assertEqual(jpeg[-2:], b'\xff\xd9')
+        for marker, payload in [(b'\xfe', b'Author: synthetic-person'), (b'\xe1', b'http://ns.adobe.com/xap/1.0/\0synthetic-author')]:
+            injected = jpeg[:-2] + b'\xff' + marker + struct.pack('>H', len(payload)+2) + payload + jpeg[-2:]
+            self.assertTrue(artifacts.image_metadata(injected))
+        # Multiple scans, byte stuffing, restart markers and marker fill bytes.
+        scan = b'\xff\xda\0\x02' + b'\x01\xff\0\x02\xff\xd0\x03'
+        self.assertFalse(artifacts.image_metadata(b'\xff\xd8' + scan*2 + b'\xff\xff\xd9'))
+        for broken in [jpeg[:-2], jpeg+b'private trailer', b'\xff\xd8\xff\xff']:
+            self.assertTrue(artifacts.image_metadata(broken))
