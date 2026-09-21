@@ -82,8 +82,8 @@ test('command popovers use anchored entrances and dismiss cleanly', async ({ con
     window.sockets.at(-1).emit({ id, type: 'done', data: '{"exit_ok":true}' })
   })
   const triggers = [
-    page.locator('button[aria-haspopup="listbox"]').first(),
-    page.locator('button[aria-haspopup="listbox"]').nth(1),
+    page.getByRole('button', { name: /^Selected node:/ }),
+    page.getByRole('button', { name: /^Command type:/ }),
     page.getByRole('button', { name: 'Saved presets', exact: true }),
     page.getByTitle('Command history (↑/↓ in input)', { exact: true }),
     page.getByLabel('ping options', { exact: true }),

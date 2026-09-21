@@ -52,7 +52,6 @@ export default function NodeSelector({ nodes, selectedNode, onSelect, compact, l
       <button
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        aria-haspopup="listbox"
         aria-label={selected ? `Selected node: ${selected.name} at ${selected.location}` : 'Select a node'}
         className={`flex items-center gap-2.5 rounded-xl
           bg-bg-secondary/30 backdrop-blur-sm border border-border/40

@@ -34,7 +34,7 @@ compatibility and rollback behavior belong to their active subsystem chunks.
 
 ## Next up
 
-**T3-01 — Dashboard behavior and accessibility.** Baseline: `none`; due now for a full first pass.
+**T3-02 — Documentation and tool guidance.** Baseline: `none`; due now for a full first pass.
 Finish remaining Tier 2 chunks, then the initial Tier 3 passes. Within a tier,
 prioritize open findings and the most overdue chunk; break ties by chunk ID.
 Cadence overrides take precedence. Update this pointer after each review.
@@ -73,7 +73,7 @@ lock order. Assign new files to a chunk before recording coverage.
 
 | ID | Chunk | Paths | Focus | Baseline | Last pass | Status |
 |---|---|---|---|---|---|---|
-| T3-01 | Dashboard behavior and accessibility | `frontend/src/`, `frontend/tests/`, `frontend/index.html`, `frontend/public/` | Remaining UI behavior, local history/kits/presets, subscriptions, accessibility, rendering bounds and error recovery. Trigger: change to UI behavior, browser storage, styles, assets or frontend tests; retain higher-tier security reviews where applicable. | none | none | due — first pass |
+| T3-01 | Dashboard behavior and accessibility | `frontend/src/`, `frontend/tests/`, `frontend/index.html`, `frontend/public/` | Remaining UI behavior, local history/kits/presets, subscriptions, accessibility, rendering bounds and error recovery. Trigger: change to UI behavior, browser storage, styles, assets or frontend tests; retain higher-tier security reviews where applicable. | bbf104cd2f695c0afe94887c05bd459473cb7bdf | 2026-09-21 | clean |
 | T3-02 | Documentation and tool guidance | `docs/`, `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `llms.txt`, `LICENSE`, `.github/copilot-instructions.md` | Accurate defaults, setup/recovery instructions, safe examples, links and consistent coding-tool guidance. Trigger: documentation/branding changes or code changes affecting documented configuration, protocols, installation or recovery. | none | none | due — first pass |
 
 ## Cadence overrides
@@ -140,3 +140,4 @@ way that does not disclose sensitive details.
 | 2026-09-21 | T2-04 | medium/low (fixed) | Reviewed metadata, summaries, agent parsers and output rendering. Added provider shape/size/identity checks and sanitized-key collision rejection; numeric badges and hop links reject malformed values. Backend vet/race suite, frontend unit/build, 34 browser tests and privacy checks passed. | [#20](https://github.com/EMOEMOJAI/Parallax/pull/20) |
 | 2026-09-21 | T2-05 | medium (fixed) | Reviewed installer/update trust, downloads, service permissions, config preservation, rollback and runtime/release packaging. Schedule migration now atomically replaces runtime destinations without following symlinks. All 28 deployment tests, ShellCheck and privacy checks passed. | [#21](https://github.com/EMOEMOJAI/Parallax/pull/21) |
 | 2026-09-21 | T2-06 | low (fixed) | Reviewed dependencies, workflow trust/permissions, hosted runners, build configuration, container scans and release gates/provenance. Added Python vulnerability scanning and artifact hashes. Go/npm/Python scans and Dependabot alerts were clean; no dependency updates found. Hash-checked install, actionlint, guard tests and privacy checks passed. | [#22](https://github.com/EMOEMOJAI/Parallax/pull/22) |
+| 2026-09-21 | T3-01 | low (fixed) | Reviewed dashboard flows, storage, subscriptions, focus, accessibility, rendering and recovery. Fixed disabled-fieldset focus wrapping, cross-tab clearing, dropdown semantics and offline comparison selections. Frontend unit/build, all 37 browser tests and privacy checks passed. | [#23](https://github.com/EMOEMOJAI/Parallax/pull/23) |

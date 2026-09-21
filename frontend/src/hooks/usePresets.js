@@ -46,7 +46,7 @@ export function usePresets() {
   // Sync across tabs.
   useEffect(() => {
     const onStorage = (e) => {
-      if (e.key === STORAGE_KEY) setPresets(load())
+      if (e.key === STORAGE_KEY || e.key === null) setPresets(load())
     }
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
