@@ -926,7 +926,8 @@ func (s *Server) scheduleAcceptOutput(resp CommandResponse) bool {
 // status and the structured summary (F35 — the old substring match on the
 // output buffer is gone).
 //
-//   - numeric loss_pct (ping, mtr): ok when the command exited cleanly and
+//   - an unsuccessful exit is always error, regardless of partial results.
+//   - numeric loss_pct (ping, mtr) after a successful exit: ok when
 //     loss < 20 %, degraded from 20 % up to (but not including) 100 %,
 //     error otherwise — a fully black-holed target is an outage, not a
 //     degradation.
