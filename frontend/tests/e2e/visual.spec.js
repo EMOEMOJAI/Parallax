@@ -3,7 +3,7 @@ import { openDashboard } from './fixtures.js'
 
 // Baselines use the pinned Linux Playwright container locally and in CI.
 // All data is synthetic; no live agents, API keys, or external resources.
-for (const screen of ['login', 'desktop', 'mobile', 'mobile-tools', 'mobile-output', 'share-preview', 'mobile-comparison', 'expired-link', 'investigations', 'agent-readiness']) {
+for (const screen of ['login', 'desktop', 'mobile', 'mobile-tools', 'mobile-output', 'share-preview', 'mobile-comparison', 'expired-link', 'agent-readiness']) {
   test(`visual: ${screen}`, async ({ context }) => {
     const page = await openDashboard(context, { authRequired: screen === 'login', savedKey: screen === 'login' ? undefined : 'visual-fixture-key', delayedReplay: screen === 'expired-link' })
     if (screen.startsWith('mobile')) await page.setViewportSize({ width: 390, height: 844 })
@@ -38,11 +38,6 @@ for (const screen of ['login', 'desktop', 'mobile', 'mobile-tools', 'mobile-outp
       await expect.poll(() => Boolean(page.replayRoute)).toBe(true)
       await page.replayRoute.fulfill({ status: 404, body: 'not found' })
       await expect(page.getByRole('heading', { name: 'Link expired or unavailable' })).toBeVisible()
-    }
-    if (screen === 'investigations') {
-      await page.getByTestId('investigations').locator(':scope > summary').click()
-      await page.getByLabel('Diagnostic node', { exact: true }).selectOption('a')
-      await page.getByLabel('Diagnostic hostname', { exact: true }).fill('example.com')
     }
     if (screen === 'agent-readiness') {
       await page.getByTitle('Node health overview', { exact: true }).click()

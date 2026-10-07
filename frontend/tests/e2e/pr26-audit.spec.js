@@ -79,11 +79,6 @@ for (const action of ['Stop', 'Close', 'disconnect']) {
       await page.getByTitle('Multi-node comparison', { exact: true }).click()
     }
     await expect(dialog.getByText('received before cancellation', { exact: true })).toBeVisible()
-    await dialog.getByRole('button', { name: 'Add comparison to incident', exact: true }).click()
-    await page.keyboard.press('Escape')
-    await page.getByTestId('investigations').locator(':scope > summary').click()
-    await page.getByRole('button', { name: 'Preview incident report', exact: true }).click()
-    await expect(page.getByLabel('Incident report preview', { exact: true })).toHaveValue(/received before cancellation/)
     expect(page.errors).toEqual([])
   })
 }

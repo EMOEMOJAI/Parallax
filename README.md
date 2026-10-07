@@ -23,7 +23,7 @@ agents into one live dashboard.
 
 - **Compare connections.** Run ping, traceroute, MTR, DNS, TLS and bandwidth tests across locations. See results side by side.
 - **Catch recurring problems.** Schedule probes, track latency between nodes, and connect Prometheus metrics and webhook alerts.
-- **Follow the evidence.** Run guided checks, compare saved baselines, and export incident reports with a redaction preview. Share results or open a terminal for a closer look.
+- **Share and dig deeper.** Export or share results with a redaction preview, or open a terminal for a closer look.
 
 <details>
 <summary>See a side-by-side comparison across three locations</summary>
