@@ -5,7 +5,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,
-  workers: process.env.CI ? 2 : undefined,
+  // A fixed local cap keeps timing-sensitive specs stable on a busy machine;
+  // pass --workers to override.
+  workers: process.env.CI ? 2 : 4,
   timeout: 30000,
   expect: { timeout: 5000 },
   reporter: [['list'], ['html', { open: 'never' }]],
