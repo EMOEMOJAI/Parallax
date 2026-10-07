@@ -61,6 +61,9 @@ activation fails or receives an interrupt. Root-only `rollback.*` directories
 retain previous binaries and frontend files. Back up persistent schedules
 separately before upgrades that change the data format.
 
+To confirm the running build, read `revision` from `GET /api/version`; it
+reports the commit the server binary was built from.
+
 To switch an existing clone to public HTTPS, set `REPO_URL` for one update:
 
 ```sh
