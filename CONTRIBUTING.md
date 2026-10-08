@@ -105,8 +105,8 @@ to a public denylist, since the denylist would disclose those markers itself.
 
 Frontend lint runs `npm run lint` with JavaScript correctness, hook-order and
 hook-dependency rules. Fix dependencies without discarding deliberate credential
-refresh/reconnect triggers. Node 24 is the CI toolchain; development also supports
-Node 22.13 or later in the 22.x line.
+refresh/reconnect triggers. Node 26 is the CI toolchain; development also supports
+Node 24 and Node 22.13 or later in the 22.x line.
 
 Firefox and WebKit run a focused smoke suite for login, native WebSocket output,
 PTY rendering, dialog focus and cross-tab storage. Chromium also runs those

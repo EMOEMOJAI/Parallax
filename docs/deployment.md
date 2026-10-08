@@ -61,6 +61,11 @@ activation fails or receives an interrupt. Root-only `rollback.*` directories
 retain previous binaries and frontend files. Back up persistent schedules
 separately before upgrades that change the data format.
 
+Server hosts build the dashboard with Node.js 26.11.1+ or a patched Node.js 24
+(24.21+). To move a host from Node 24 to 26, run the updater once on Node 24
+first so it installs the current `update.sh`; older installed updaters accept
+only Node 24 and would refuse to run after the switch.
+
 To confirm the running build, read `revision` from `GET /api/version`; it
 reports the commit the server binary was built from.
 

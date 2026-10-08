@@ -59,8 +59,10 @@ if [[ "$GO_CURRENT" != 1.27.* ]] || [ "$(printf '%s\n' 1.27.1 "$GO_CURRENT" | so
 fi
 if "$SERVER"; then
   NODE_CURRENT=$(node -p 'process.versions.node')
-  if [[ "$NODE_CURRENT" != 24.* ]] || [ "$(printf '%s\n' 24.21.0 "$NODE_CURRENT" | sort -V | head -1)" != 24.21.0 ]; then
-    echo "ERROR: Install supported Node.js 24.21+ before updating." >&2
+  NODE_MIN=
+  case "$NODE_CURRENT" in 24.*) NODE_MIN=24.21.0 ;; 26.*) NODE_MIN=26.11.1 ;; esac
+  if [ -z "$NODE_MIN" ] || [ "$(printf '%s\n' "$NODE_MIN" "$NODE_CURRENT" | sort -V | head -1)" != "$NODE_MIN" ]; then
+    echo "ERROR: Install supported Node.js 26.11.1+ (or 24.21+) before updating." >&2
     exit 1
   fi
 fi
