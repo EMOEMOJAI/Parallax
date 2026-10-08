@@ -186,7 +186,8 @@ prepare_repo
                 self.assertEqual('FETCH' in result.stderr, not accepted)
 
     def test_only_patched_node_lts_is_retained(self):
-        for version, accepted in [('24.21.0', True), ('24.22.0', True), ('24.20.0', False), ('22.12.0', False), ('23.0.0', False)]:
+        for version, accepted in [('24.21.0', True), ('24.22.0', True), ('24.20.0', False), ('22.12.0', False), ('23.0.0', False),
+                                  ('25.9.0', False), ('26.11.0', False), ('26.11.1', True), ('26.12.0', True), ('27.0.0', False)]:
             with self.subTest(version=version):
                 result = self.shell('VERSION=$1; node() { echo "$VERSION"; }; curl() { echo FETCH >&2; return 72; }; ensure_node', version)
                 self.assertEqual(result.returncode == 0, accepted, result.stderr)

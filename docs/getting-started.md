@@ -23,7 +23,7 @@ See [Deployment](deployment.md) for production setup and updates.
 
 ## Local development
 
-Use **Go 1.27.1** and **Node.js 24**, matching [CI](../.github/workflows/ci.yml).
+Use **Go 1.27.1** and **Node.js 26**, matching [CI](../.github/workflows/ci.yml).
 From a checkout, run each command in a separate terminal:
 
 ```sh

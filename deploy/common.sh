@@ -53,12 +53,14 @@ PY
 ensure_node() {
   local current arch archive temp
   current=$(node -p 'process.versions.node' 2>/dev/null) || current=0
+  # Keep a patched Node 24 LTS; new or outdated installs get Node 26.
   if [[ "$current" = 24.* ]] && [ "$(printf '%s\n' 24.21.0 "$current" | sort -V | head -1)" = 24.21.0 ]; then return; fi
-  case "$(uname -m)" in x86_64) arch=x64 ;; aarch64|arm64) arch=arm64 ;; *) fail 'Install Node.js 24.21+ for this architecture first.' ;; esac
-  archive="node-v24.21.0-linux-${arch}.tar.xz"
+  if [[ "$current" = 26.* ]] && [ "$(printf '%s\n' 26.11.1 "$current" | sort -V | head -1)" = 26.11.1 ]; then return; fi
+  case "$(uname -m)" in x86_64) arch=x64 ;; aarch64|arm64) arch=arm64 ;; *) fail 'Install Node.js 26.11.1+ for this architecture first.' ;; esac
+  archive="node-v26.11.1-linux-${arch}.tar.xz"
   temp=$(mktemp -d)
-  curl -fsSL --retry 3 "https://nodejs.org/dist/v24.21.0/$archive" -o "$temp/$archive"
-  curl -fsSL --retry 3 https://nodejs.org/dist/v24.21.0/SHASUMS256.txt -o "$temp/SHASUMS256.txt"
+  curl -fsSL --retry 3 "https://nodejs.org/dist/v26.11.1/$archive" -o "$temp/$archive"
+  curl -fsSL --retry 3 https://nodejs.org/dist/v26.11.1/SHASUMS256.txt -o "$temp/SHASUMS256.txt"
   (cd "$temp" && grep "  $archive\$" SHASUMS256.txt | sha256sum -c -)
   tar -xJf "$temp/$archive" -C /usr/local --strip-components=1
   rm -rf "$temp"

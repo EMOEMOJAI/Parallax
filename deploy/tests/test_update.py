@@ -48,7 +48,7 @@ elif name == 'git':
     if args[0] == 'describe':
         print('test-version')
 elif name == 'node':
-    print('20.19.0' if os.environ.get('FAIL') == 'old-node' else '24.21.0')
+    print('20.19.0' if os.environ.get('FAIL') == 'old-node' else os.environ.get('NODE_VERSION', '24.21.0'))
 elif name == 'go':
     if args[0] == 'version':
         print('go version go1.24.4 linux/amd64' if os.environ.get('FAIL') == 'old-go' else 'go version go1.27.1 linux/amd64')
@@ -130,6 +130,18 @@ class UpdateTests(unittest.TestCase):
                 self.assertEqual((app / 'looking-glass-server').read_text(), 'old-binary')
                 self.assertEqual((app / 'looking-glass-agent').read_text(), 'old-binary')
                 self.assertEqual((app / 'frontend/dist/index.html').read_text(), 'old-frontend')
+
+    def test_node_lts_lines_are_accepted_and_others_refused(self):
+        for version, accepted in [('24.21.0', True), ('26.11.1', True), ('26.12.0', True),
+                                  ('24.20.0', False), ('25.9.0', False), ('26.11.0', False), ('27.0.0', False)]:
+            with self.subTest(version=version):
+                os.environ['NODE_VERSION'] = version
+                try:
+                    app, log, result = self.run_update('server')
+                finally:
+                    del os.environ['NODE_VERSION']
+                self.assertEqual(result.returncode == 0, accepted, result.stderr)
+                self.assertEqual('restart looking-glass-server' in log, accepted)
 
     def test_restart_failure_restores_both_binaries_and_frontend(self):
         app, log, result = self.run_update('server,agent', 'restart')
