@@ -1,4 +1,4 @@
-FROM golang:1.27.1-alpine3.24 AS build
+FROM golang:1.27.2-alpine3.24 AS build
 # The build stage copies only agent/ and therefore has no git metadata, so the
 # build identity cannot be derived here — pass it in with
 # `docker build --build-arg AGENT_VERSION=v1.2.3`; it defaults to "docker".
